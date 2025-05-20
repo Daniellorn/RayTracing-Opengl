@@ -6,7 +6,9 @@ set(SOURCE_DIR "Source")
 
 set(SOURCES
 	Source/ProjektGrafika.cpp
-	Source/ProjektGrafika.h)
+	Source/Shader.h
+	Source/Shader.cpp
+)
 
 
 add_executable(ProjektGrafika ${SOURCES})
