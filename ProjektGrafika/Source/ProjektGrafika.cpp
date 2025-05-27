@@ -80,8 +80,7 @@ int main()
     glBindVertexArray(0);
 
 
-    Shader shader("C:/Users/nadol/Desktop/ProjektGrafika/RayTracing-Opengl/ProjektGrafika/res/Shaders/fragment.shader",
-        "C:/Users/nadol/Desktop/ProjektGrafika/RayTracing-Opengl/ProjektGrafika/res/Shaders/vertex.shader");
+    Shader shader("res/Shaders/vertex.shader", "res/Shaders/fragment.shader");
 
     shader.Bind();
     shader.UnBind();
