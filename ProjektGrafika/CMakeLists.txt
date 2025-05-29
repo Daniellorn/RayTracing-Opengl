@@ -8,6 +8,7 @@ set(SOURCES
 	Source/ProjektGrafika.cpp
 	Source/Shader.h
 	Source/Shader.cpp
+	Source/vendor/stb_image/stb_image.cpp
 )
 
 
@@ -16,6 +17,8 @@ add_executable(ProjektGrafika ${SOURCES})
 
 target_link_libraries(ProjektGrafika glfw)
 target_link_libraries(ProjektGrafika glad)
+target_include_directories(ProjektGrafika PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb_image)
+
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory

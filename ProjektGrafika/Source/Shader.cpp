@@ -7,12 +7,11 @@
 
 #include "Shader.h"
 
-Shader::Shader(const std::filesystem::path& vertSrc, const std::filesystem::path& fragSrc)
+Shader::Shader(const std::filesystem::path& computeSrc)
 {
-	m_VertexShader = ParseShader(vertSrc);
-	m_FragmentShader = ParseShader(fragSrc);
+	m_ComputeShader = ParseShader(computeSrc);
 
-	m_RendererID = CreateShader(m_VertexShader, m_FragmentShader);
+	m_RendererID = CreateShader(m_ComputeShader);
 }
 
 Shader::~Shader()
@@ -36,6 +35,7 @@ std::string Shader::ParseShader(const std::filesystem::path& filepath)
 
 	if (!file)
 	{
+		std::cerr << "Failed to open shader file: " << filepath << std::endl;
 		return "";
 	}
 
@@ -51,7 +51,7 @@ uint32_t Shader::CompileShader(uint32_t type, const std::string& source)
 	uint32_t id = glCreateShader(type);
 	const char* src = source.c_str();
 
-	glShaderSource(id, 1, &src, 0);
+	glShaderSource(id, 1, &src, nullptr);
 	glCompileShader(id);
 
 	int isCompiled = 0;
@@ -62,7 +62,7 @@ uint32_t Shader::CompileShader(uint32_t type, const std::string& source)
 		glGetShaderiv(id, GL_INFO_LOG_LENGTH, &maxLength);
 
 		std::vector<char> infoLog(maxLength);
-		glGetShaderInfoLog(id, maxLength, &maxLength, &infoLog[0]);
+		glGetShaderInfoLog(id, maxLength, &maxLength, infoLog.data());
 
 		glDeleteShader(id);
 
@@ -76,19 +76,38 @@ uint32_t Shader::CompileShader(uint32_t type, const std::string& source)
 	return id;
 }
 
-uint32_t Shader::CreateShader(const std::string& vertexShader, const std::string& fragmentShader)
+uint32_t Shader::CreateShader(const std::string& computeShader)
 {
 	uint32_t program = glCreateProgram();
-	uint32_t vs = CompileShader(GL_VERTEX_SHADER, vertexShader);
-	uint32_t fs = CompileShader(GL_FRAGMENT_SHADER, fragmentShader);
+	uint32_t cs = CompileShader(GL_COMPUTE_SHADER, computeShader);
 
-	glAttachShader(program, vs);
-	glAttachShader(program, fs);
+	if (cs == std::numeric_limits<uint32_t>::max())
+	{
+		glDeleteProgram(program);
+		return std::numeric_limits<uint32_t>::max();
+	}
+
+	glAttachShader(program, cs);
 	glLinkProgram(program);
-	glValidateProgram(program);
 
-	glDeleteShader(vs);
-	glDeleteShader(fs);
+	int isLinked = 0;
+	glGetProgramiv(program, GL_LINK_STATUS, &isLinked);
+
+	if (isLinked == GL_FALSE)
+	{
+		int maxLength = 0;
+		glGetProgramiv(program, GL_INFO_LOG_LENGTH, &maxLength);
+
+		std::vector<char> infoLog(maxLength);
+		glGetProgramInfoLog(program, maxLength, &maxLength, infoLog.data());
+
+		std::cerr << "Shader linking failed: " << std::string(infoLog.begin(), infoLog.end()) << std::endl;
+
+		glDeleteProgram(program);
+		return std::numeric_limits<uint32_t>::max();
+	}
+
+	glDeleteShader(cs);
 
 
 	return program;
