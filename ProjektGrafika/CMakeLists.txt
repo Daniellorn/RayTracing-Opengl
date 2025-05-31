@@ -9,6 +9,7 @@ set(SOURCES
 	Source/Shader.h
 	Source/Shader.cpp
 	Source/vendor/stb_image/stb_image.cpp
+	Source/Assert.h
 )
 
 

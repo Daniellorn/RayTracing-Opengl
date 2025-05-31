@@ -3,9 +3,9 @@
 #include <sstream>
 #include <limits>
 #include <vector>
-#include <iostream>
 
 #include "Shader.h"
+#include "Assert.h"
 
 Shader::Shader(const std::filesystem::path& computeSrc)
 {
@@ -35,7 +35,7 @@ std::string Shader::ParseShader(const std::filesystem::path& filepath)
 
 	if (!file)
 	{
-		std::cerr << "Failed to open shader file: " << filepath << std::endl;
+		ASSERT(std::filesystem::exists(filepath));
 		return "";
 	}
 
@@ -107,6 +107,7 @@ uint32_t Shader::CreateShader(const std::string& computeShader)
 		return std::numeric_limits<uint32_t>::max();
 	}
 
+	glDetachShader(program, cs);
 	glDeleteShader(cs);
 
 
