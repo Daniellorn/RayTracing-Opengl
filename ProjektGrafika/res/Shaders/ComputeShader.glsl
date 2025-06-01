@@ -12,8 +12,15 @@ struct Ray
 
 struct Sphere 
 {
-  vec3 position;
-  float radius;
+    vec3 position;
+    vec3 albedo;
+    float radius;
+};
+
+struct Light
+{
+    vec3 direction;
+    vec3 color;
 };
 
 vec3 RayAt(Ray ray, float t)
@@ -37,13 +44,21 @@ float Intersection(Ray ray, Sphere sphere)
     float t1 = (-b - sqrt(discriminant)) / (2.0 * a);
     float t2 = (-b + sqrt(discriminant)) / (2.0 * a);
     
-    if (t1 < t2)
+    if (t1 > 0.0 && t2 > 0.0)
+    {
+        return min(t1, t2); 
+    }
+    else if (t1 > 0.0)
     {
         return t1;
     }
-    else
+    else if (t2 > 0.0)
     {
         return t2;
+    }
+    else
+    {
+        return -1.0;
     }
 }
 
@@ -65,13 +80,16 @@ void main()
 
     normalizedCoord.x *= aspectRatio;
 
-    Sphere sphere;
-    sphere.position = vec3(0.0, 0.0, -1.0);
-    sphere.radius = 1.5;
-
     Ray ray;
     ray.origin = vec3(0.0, 0.0, 2.0);
     ray.direction = normalize(vec3(normalizedCoord, -1.0));
+
+    Sphere sphere = Sphere(vec3(0.0, 0.0, -1.0), vec3(1.0, 0.0, 1.0), 1.5);
+    Sphere sphere2 = Sphere(vec3(0.0, -100.0, 0.0), vec3(0.2, 0.2, 0.2), 100.0);
+
+    Light lightsource = Light(normalize(vec3(-1.0, -1.0, -1.0)), vec3(1.0));
+
+
     
     vec4 color = vec4(1.0);
 
@@ -80,8 +98,12 @@ void main()
     if (t > 0.0)
     {
         vec3 normal = normalize(RayAt(ray, t) - sphere.position); 
-        normal = normal * 0.5 + 0.5;
-        color = vec4(normal, 1.0);
+        //normal = normal * 0.5 + 0.5;
+
+        float d = max(dot(normal, -lightsource.direction), 0.0);
+
+
+        color = vec4(sphere.albedo * d, 1.0);
     }
     else
     {
