@@ -24,5 +24,4 @@ private:
 	uint32_t m_RendererID;
 
 	std::string m_ComputeShader;
-
 };

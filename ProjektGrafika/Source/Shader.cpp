@@ -10,7 +10,6 @@
 Shader::Shader(const std::filesystem::path& computeSrc)
 {
 	m_ComputeShader = ParseShader(computeSrc);
-
 	m_RendererID = CreateShader(m_ComputeShader);
 }
 

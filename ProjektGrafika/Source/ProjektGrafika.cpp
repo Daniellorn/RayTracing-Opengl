@@ -3,6 +3,7 @@
 #include <GLFW/glfw3.h>
 
 #include <iostream>
+#include <filesystem>
 
 #include "Shader.h"
 
@@ -17,11 +18,12 @@ int main()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
+
     int width = 1280;
     int height = 720;
 
 
-    GLFWwindow* window = glfwCreateWindow(width, height, "LearnOpenGL", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(width, height, "RayTracing OpenGL", NULL, NULL);
     if (window == NULL)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -68,7 +70,7 @@ int main()
     }
 
 
-    Shader ComputeShader("res/Shaders/ComputeShader.glsl");
+    Shader ComputeShader(RESOURCE_PATH "ComputeShader.glsl");
 
     ComputeShader.Bind();
     ComputeShader.UnBind();
