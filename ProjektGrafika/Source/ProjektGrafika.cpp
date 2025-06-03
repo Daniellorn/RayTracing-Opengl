@@ -6,6 +6,7 @@
 #include <filesystem>
 
 #include "Shader.h"
+#include "Camera.h"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
@@ -46,6 +47,7 @@ int main()
     std::cout << "	Renderer: " << glGetString(GL_RENDERER) << std::endl;
     std::cout << "	Version: " << glGetString(GL_VERSION) << std::endl;
 
+    Camera camera(window, width, height);
 
     uint32_t frameBuffertextureID;
     glCreateTextures(GL_TEXTURE_2D, 1, &frameBuffertextureID);
@@ -75,14 +77,35 @@ int main()
     ComputeShader.Bind();
     ComputeShader.UnBind();
 
+    float deltaTime = 0.0f;
+    float lastFrame = 0.0f;
+    float currentFrame = 0.0f;
+
     while (!glfwWindowShouldClose(window))
     {
+        currentFrame = glfwGetTime();
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
+
         processInput(window);
 
         glfwGetFramebufferSize(window, &width, &height);
 
         ComputeShader.Bind();
         glBindImageTexture(0, frameBuffertextureID, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+
+        camera.Inputs(deltaTime);
+
+        auto cameraPosition = camera.GetCameraPosition();
+        auto cameraFront = camera.GetCameraFront();
+        auto cameraRight = camera.GetCameraRight();
+        auto cameraUp = camera.GetCameraUp();
+
+
+        ComputeShader.SetUniform3f("cameraPosition", cameraPosition.x, cameraPosition.y, cameraPosition.z);
+        ComputeShader.SetUniform3f("cameraFront", cameraFront.x, cameraFront.y, cameraFront.z);
+        ComputeShader.SetUniform3f("cameraRight", cameraRight.x, cameraRight.y, cameraRight.z);
+        ComputeShader.SetUniform3f("cameraUp", cameraUp.x, cameraUp.y, cameraUp.z);
 
         const uint32_t workGroupSizeX = 16;
         const uint32_t workGroupSizeY = 16;

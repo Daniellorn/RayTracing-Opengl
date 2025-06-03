@@ -3,6 +3,11 @@
 layout(rgba32f, binding = 0) uniform writeonly image2D outputImage;
 layout(local_size_x = 16, local_size_y = 16) in;
 
+uniform vec3 cameraPosition;
+uniform vec3 cameraRotation;
+uniform vec3 cameraUp;
+uniform vec3 cameraRight;
+uniform vec3 cameraFront;
 
 struct Ray
 {
@@ -81,11 +86,16 @@ void main()
     normalizedCoord.x *= aspectRatio;
 
     Ray ray;
-    ray.origin = vec3(0.0, 0.0, 2.0);
-    ray.direction = normalize(vec3(normalizedCoord, -1.0));
+    ray.origin = cameraPosition;
+    float fov = radians(45.0);
+
+    float px = normalizedCoord.x * tan(fov / 2.0);
+    float py = normalizedCoord.y * tan(fov / 2.0);
+
+    ray.direction = normalize(cameraFront + px * cameraRight + py * cameraUp);
+
 
     Sphere sphere = Sphere(vec3(0.0, 0.0, -1.0), vec3(1.0, 0.0, 1.0), 1.5);
-    Sphere sphere2 = Sphere(vec3(0.0, -100.0, 0.0), vec3(0.2, 0.2, 0.2), 100.0);
 
     Light lightsource = Light(normalize(vec3(-1.0, -1.0, -1.0)), vec3(1.0));
 
