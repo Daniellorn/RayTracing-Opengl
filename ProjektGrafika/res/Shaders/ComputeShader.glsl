@@ -3,11 +3,9 @@
 layout(rgba32f, binding = 0) uniform writeonly image2D outputImage;
 layout(local_size_x = 16, local_size_y = 16) in;
 
-uniform vec3 cameraPosition;
-uniform vec3 cameraRotation;
-uniform vec3 cameraUp;
-uniform vec3 cameraRight;
-uniform vec3 cameraFront;
+uniform vec3 u_CameraPosition;
+uniform mat4 u_InverseProjection;
+uniform mat4 u_InverseView;
 
 struct Ray
 {
@@ -83,16 +81,11 @@ void main()
 
     float aspectRatio = float(texSize.x) / float(texSize.y);
 
-    normalizedCoord.x *= aspectRatio;
+    vec4 target = u_InverseProjection * vec4(normalizedCoord.x, normalizedCoord.y, 1, 1);
 
     Ray ray;
-    ray.origin = cameraPosition;
-    float fov = radians(45.0);
-
-    float px = normalizedCoord.x * tan(fov / 2.0);
-    float py = normalizedCoord.y * tan(fov / 2.0);
-
-    ray.direction = normalize(cameraFront + px * cameraRight + py * cameraUp);
+    ray.origin = u_CameraPosition;
+    ray.direction = vec3(u_InverseView * vec4(normalize(vec3(target) / target.w), 0));
 
 
     Sphere sphere = Sphere(vec3(0.0, 0.0, -1.0), vec3(1.0, 0.0, 1.0), 1.5);

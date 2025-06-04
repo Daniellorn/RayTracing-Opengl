@@ -12,6 +12,8 @@ set(SOURCES
 	Source/Assert.h
 	Source/Camera.h
 	Source/Camera.cpp
+	Source/Scene.cpp 
+	Source/Scene.h
 )
 
 

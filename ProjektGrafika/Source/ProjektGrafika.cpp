@@ -47,7 +47,7 @@ int main()
     std::cout << "	Renderer: " << glGetString(GL_RENDERER) << std::endl;
     std::cout << "	Version: " << glGetString(GL_VERSION) << std::endl;
 
-    Camera camera(window, width, height);
+    Camera camera(window, 45.0f, 0.1f, 100.0f, width, height);
 
     uint32_t frameBuffertextureID;
     glCreateTextures(GL_TEXTURE_2D, 1, &frameBuffertextureID);
@@ -94,18 +94,15 @@ int main()
         ComputeShader.Bind();
         glBindImageTexture(0, frameBuffertextureID, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
 
-        camera.Inputs(deltaTime);
+        camera.OnUpdate(deltaTime);
 
-        auto cameraPosition = camera.GetCameraPosition();
-        auto cameraFront = camera.GetCameraFront();
-        auto cameraRight = camera.GetCameraRight();
-        auto cameraUp = camera.GetCameraUp();
+        const auto& cameraPosition = camera.GetPosition();
+        const auto& inverseProjection = camera.GetInverseProjection();
+        const auto& inverseView = camera.GetInverseView();
 
-
-        ComputeShader.SetUniform3f("cameraPosition", cameraPosition.x, cameraPosition.y, cameraPosition.z);
-        ComputeShader.SetUniform3f("cameraFront", cameraFront.x, cameraFront.y, cameraFront.z);
-        ComputeShader.SetUniform3f("cameraRight", cameraRight.x, cameraRight.y, cameraRight.z);
-        ComputeShader.SetUniform3f("cameraUp", cameraUp.x, cameraUp.y, cameraUp.z);
+        ComputeShader.SetUniform3f("u_CameraPosition", cameraPosition.x, cameraPosition.y, cameraPosition.z);
+        ComputeShader.SetUniformMat4fm("u_InverseProjection", inverseProjection);
+        ComputeShader.SetUniformMat4fm("u_InverseView", inverseView);
 
         const uint32_t workGroupSizeX = 16;
         const uint32_t workGroupSizeY = 16;
