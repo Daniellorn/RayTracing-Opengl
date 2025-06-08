@@ -3,6 +3,14 @@ RayTracing in OpenGL in compute shader.
 
 ## Building
 
+First:
+
+```
+git clone --recursive <repo-url>
+```
+
+Then
+
 Run CMake: 
     
 ```
