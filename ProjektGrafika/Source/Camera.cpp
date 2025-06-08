@@ -23,7 +23,7 @@ void Camera::OnUpdate(float ts)
 	glm::dvec2 delta = (mousePosition - m_LastMousePosition) * (double)m_Sensitivity;
 	m_LastMousePosition = mousePosition;
 
-	if (glfwGetMouseButton(m_Window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_RELEASE)
+	if (glfwGetMouseButton(m_Window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_RELEASE)
 	{
 		glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 		return;

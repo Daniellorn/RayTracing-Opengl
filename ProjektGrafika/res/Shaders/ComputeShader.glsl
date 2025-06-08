@@ -1,11 +1,7 @@
 #version 460 core
 
-layout(rgba32f, binding = 0) uniform writeonly image2D outputImage;
-layout(local_size_x = 16, local_size_y = 16) in;
+const float MAX_FLOAT = 3.402823466e+38;
 
-uniform vec3 u_CameraPosition;
-uniform mat4 u_InverseProjection;
-uniform mat4 u_InverseView;
 
 struct Ray
 {
@@ -13,11 +9,18 @@ struct Ray
     vec3 direction;
 };
 
+struct Material
+{
+    vec3 albedo;
+    float roughness;
+};
+
 struct Sphere 
 {
     vec3 position;
-    vec3 albedo;
     float radius;
+    
+    Material material;
 };
 
 struct Light
@@ -25,6 +28,21 @@ struct Light
     vec3 direction;
     vec3 color;
 };
+
+layout(rgba32f, binding = 0) uniform writeonly image2D outputImage;
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(std430, binding = 0) buffer SpheresBuffer {
+    Sphere spheres[];
+};
+
+uniform vec3 u_CameraPosition;
+uniform mat4 u_InverseProjection;
+uniform mat4 u_InverseView;
+uniform int u_NumOfSpheres;
+
+
+
+
 
 vec3 RayAt(Ray ray, float t)
 {
@@ -87,26 +105,42 @@ void main()
     ray.origin = u_CameraPosition;
     ray.direction = vec3(u_InverseView * vec4(normalize(vec3(target) / target.w), 0));
 
-
-    Sphere sphere = Sphere(vec3(0.0, 0.0, -1.0), vec3(1.0, 0.0, 1.0), 1.5);
-
     Light lightsource = Light(normalize(vec3(-1.0, -1.0, -1.0)), vec3(1.0));
 
 
     
     vec4 color = vec4(1.0);
+    float hitDistance = MAX_FLOAT;
+    Sphere closestSphere;
+    bool hit = false;
 
-    float t = Intersection(ray, sphere);
-
-    if (t > 0.0)
+    for (int i = 0; i < u_NumOfSpheres; i++)
     {
-        vec3 normal = normalize(RayAt(ray, t) - sphere.position); 
+        float t = Intersection(ray, spheres[i]);
+
+        if (t < 0.0)
+        {
+            continue;
+        }
+
+        if (t < hitDistance)
+        {
+            closestSphere = spheres[i];
+            hitDistance = t;
+            hit = true;
+        }
+    }
+
+
+    if (hit)
+    {
+        vec3 normal = normalize(RayAt(ray, hitDistance) - closestSphere.position); 
         //normal = normal * 0.5 + 0.5;
 
         float d = max(dot(normal, -lightsource.direction), 0.0);
 
 
-        color = vec4(sphere.albedo * d, 1.0);
+        color = vec4(closestSphere.material.albedo * d, 1.0);
     }
     else
     {

@@ -1,0 +1,3 @@
+[submodule "ProjektGrafika/Source/vendor/ImGui/imgui"]
+	path = ProjektGrafika/Source/vendor/ImGui/imgui
+	url = https://github.com/ocornut/imgui.git

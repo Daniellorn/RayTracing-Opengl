@@ -8,7 +8,7 @@
 struct alignas(16) Material
 {
 	glm::vec3 albedo;
-	float lol = 0.0f;
+	float roughness;
 };
 
 struct alignas(16) Sphere
@@ -29,7 +29,7 @@ public:
 
 	void AddObject(const Sphere& sphere);
 
-	const std::vector<Sphere>& GetSpheres() const { return m_Objects; }
+	std::vector<Sphere>& GetSpheres() { return m_Objects; }
 
 private:
 	std::vector<Sphere> m_Objects;
