@@ -1,6 +1,8 @@
 #version 460 core
 
 const float MAX_FLOAT = 3.402823466e+38;
+const uint MAX_UINT = 4294967295;
+const float EPSILON = 0.001;
 
 
 struct Ray
@@ -13,6 +15,7 @@ struct Material
 {
     vec3 albedo;
     float roughness;
+    float metallic;
 };
 
 struct Sphere 
@@ -29,6 +32,15 @@ struct Light
     vec3 color;
 };
 
+struct HitInfo
+{
+    vec3 point;
+    vec3 normal;   
+    float t;
+    float hitDistance;
+    int objectIndex;
+};
+
 layout(rgba32f, binding = 0) uniform writeonly image2D outputImage;
 layout(local_size_x = 16, local_size_y = 16) in;
 layout(std430, binding = 0) buffer SpheresBuffer {
@@ -39,10 +51,46 @@ uniform vec3 u_CameraPosition;
 uniform mat4 u_InverseProjection;
 uniform mat4 u_InverseView;
 uniform int u_NumOfSpheres;
+uniform uint u_Time;
+uniform int u_MAX_BOUNCE;
+
+Light lightsource = Light(normalize(vec3(-1.0, -1.0, -1.0)), vec3(1.0));
 
 
+uint PCG_Hash(uint hash)
+{
+    uint state = hash * 747796405u + 2891336453u;
+    uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    return (word >> 22u) ^ word;
+}
 
+float RandomFloat(inout uint seed)
+{
+    seed = PCG_Hash(seed);
+    return float(seed) / MAX_UINT;
+}
 
+float RandomRange(inout uint seed, float min, float max)
+{
+    return mix(min, max, RandomFloat(seed));
+}
+
+vec3 RandomUnitVec3(inout uint seed)
+{
+    return normalize(vec3(
+        RandomFloat(seed) * 2.0 - 1.0,
+        RandomFloat(seed) * 2.0 - 1.0,
+        RandomFloat(seed) * 2.0 - 1.0));
+}
+
+vec3 RandomVec3(inout uint seed, float min, float max)
+{
+    return vec3(
+        RandomRange(seed, min, max),
+        RandomRange(seed, min, max),
+        RandomRange(seed, min, max)
+    );
+}
 
 vec3 RayAt(Ray ray, float t)
 {
@@ -83,6 +131,117 @@ float Intersection(Ray ray, Sphere sphere)
     }
 }
 
+HitInfo Miss()
+{
+    HitInfo hitInfo;
+    hitInfo.hitDistance = -1.0;
+
+    return hitInfo;
+}
+
+HitInfo TraceRay(Ray ray)
+{
+    HitInfo hitInfo;
+    hitInfo.hitDistance = MAX_FLOAT;
+    hitInfo.objectIndex = -1;
+
+    for (int i = 0; i < u_NumOfSpheres; i++)
+    {
+        float t = Intersection(ray, spheres[i]);
+
+        if (t < 0.0)
+        {
+            continue;
+        }
+
+        if (t < hitInfo.hitDistance)
+        {
+            hitInfo.objectIndex = i;
+            hitInfo.hitDistance = t;
+            hitInfo.t = t;
+            hitInfo.point = RayAt(ray, t);
+        }
+    }
+
+    if (hitInfo.objectIndex < 0)
+    {
+        HitInfo miss = Miss();
+        return miss;
+    }
+
+    return  hitInfo;
+}
+
+bool InShadow(HitInfo hitInfo, Light lightSource)
+{
+    Ray shadowRay;
+    shadowRay.origin = hitInfo.point + hitInfo.normal * EPSILON;
+    shadowRay.direction = -lightSource.direction;
+
+    for (int i = 0; i < u_NumOfSpheres; i++)
+    {
+        float t = Intersection(shadowRay, spheres[i]);
+
+        if (t < 0.0)
+        {
+            continue;
+        }
+
+        if (t > 0.0)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
+vec3 BounceRay(Ray ray, inout uint seed)
+{
+    //vec3 contribution = vec3(1.0);
+    vec3 color = vec3(0.0);
+    float multiplier = 1.0;
+
+    for (int i = 0; i < u_MAX_BOUNCE; i++)
+    {
+        HitInfo hitInfo = TraceRay(ray);
+
+        if (hitInfo.hitDistance < 0.0)
+        {
+            vec3 unit_direction = normalize(ray.direction);
+            float a = 0.5 * (unit_direction.y + 1.0);
+            vec3 skyColor = vec3(mix(vec3(1.0, 1.0, 1.0), vec3(0.5, 0.7, 1.0), a));
+            color += skyColor * multiplier;
+            break;
+        }
+    
+    
+        Sphere closestSphere = spheres[hitInfo.objectIndex];
+
+        vec3 normal = normalize(hitInfo.point - closestSphere.position); 
+        
+        hitInfo.normal = normal;
+        
+        float lightIntensity =  InShadow(hitInfo, lightsource) ? 0.0 : max(dot(normal, -lightsource.direction), 0.0); // cos(a)
+
+        vec3 sphereColor = closestSphere.material.albedo;
+        sphereColor *= lightIntensity;
+
+        color += sphereColor * multiplier;
+
+        multiplier *= 0.7;
+
+        ray.origin = hitInfo.point + hitInfo.normal * EPSILON;
+        ray.direction = reflect(ray.direction, 
+        hitInfo.normal + closestSphere.material.roughness * RandomVec3(seed, -0.5, 0.5));
+        //ray.direction  - 2 * dot(ray.direction, normal) * normal;
+
+    }
+
+    return color;
+}
+
 
 void main()
 {
@@ -90,6 +249,9 @@ void main()
 
     if (pixelCoord.x >= imageSize(outputImage).x || pixelCoord.y >= imageSize(outputImage).y)
 		return;
+
+    uint seed = uint(pixelCoord.x * 73856093 ^ pixelCoord.y * 19349663);
+    seed ^= u_Time * 15731;
 
     ivec2 texSize = imageSize(outputImage);
     vec2 fTexSize = vec2(texSize);
@@ -104,51 +266,8 @@ void main()
     Ray ray;
     ray.origin = u_CameraPosition;
     ray.direction = vec3(u_InverseView * vec4(normalize(vec3(target) / target.w), 0));
-
-    Light lightsource = Light(normalize(vec3(-1.0, -1.0, -1.0)), vec3(1.0));
-
-
     
-    vec4 color = vec4(1.0);
-    float hitDistance = MAX_FLOAT;
-    Sphere closestSphere;
-    bool hit = false;
+    vec3 color = BounceRay(ray, seed);
 
-    for (int i = 0; i < u_NumOfSpheres; i++)
-    {
-        float t = Intersection(ray, spheres[i]);
-
-        if (t < 0.0)
-        {
-            continue;
-        }
-
-        if (t < hitDistance)
-        {
-            closestSphere = spheres[i];
-            hitDistance = t;
-            hit = true;
-        }
-    }
-
-
-    if (hit)
-    {
-        vec3 normal = normalize(RayAt(ray, hitDistance) - closestSphere.position); 
-        //normal = normal * 0.5 + 0.5;
-
-        float d = max(dot(normal, -lightsource.direction), 0.0);
-
-
-        color = vec4(closestSphere.material.albedo * d, 1.0);
-    }
-    else
-    {
-        vec3 unit_direction = normalize(ray.direction);
-        float a = 0.5 * (unit_direction.y + 1.0);
-        color = vec4(mix(vec3(1.0, 1.0, 1.0), vec3(0.5, 0.7, 1.0), a), 1.0);
-
-    }
-
-    imageStore(outputImage, pixelCoord, color);
+    imageStore(outputImage, pixelCoord, vec4(color, 1.0));
 }

@@ -101,8 +101,9 @@ int main()
 
     Scene scene;
 
-    scene.AddObject(Sphere(glm::vec3{ 0.0f, 0.0f, -1.0f }, 1.5f, Material(glm::vec3(1.0f, 0.0f, 1.0f), 1.0f)));
+    scene.AddObject(Sphere(glm::vec3{ 0.0f, 0.0f, 0.0f }, 1.0f, Material(glm::vec3(1.0f, 0.0f, 1.0f), 1.0f)));
     scene.AddObject(Sphere(glm::vec3{ -6.0f, 0.0f, -6.0f }, 2.5f, Material(glm::vec3(0.2f, 0.3f, 1.0f), 1.0f)));
+    scene.AddObject(Sphere(glm::vec3{ 0.0f, -102.5f, 0.0f }, 100.0f, Material(glm::vec3(0.2f, 0.3f, 1.0f), 1.0f)));
 
     auto& spheres = scene.GetSpheres();
 
@@ -121,6 +122,8 @@ int main()
 
     float lastRenderTime = 0.0f;
 
+    int MAX_BOUNCE = 5;
+
     while (!glfwWindowShouldClose(window))
     {
         Timer timer;
@@ -131,13 +134,15 @@ int main()
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
+        double seed = glfwGetTime();
+
         ImGui::Begin("Settings");
         ImGui::Text("Last render: %.3fms", lastRenderTime);
+        ImGui::DragInt("Max bounce", &MAX_BOUNCE, 1, 1, 50);
         ImGui::End();
 
         ImGui::Begin("Scene");
@@ -149,6 +154,8 @@ int main()
             Sphere& sphere = spheres[i];
             ImGui::DragFloat3("Position", glm::value_ptr(sphere.position), 0.1f);
             ImGui::DragFloat("Radius", &sphere.radius, 0.1f);
+            ImGui::DragFloat("Roughness", &sphere.material.roughness, 0.05f, 0.0f, 1.0f);
+            ImGui::DragFloat("Metallic", &sphere.material.metallic, 0.05f, 0.0f, 1.0f);
             ImGui::ColorEdit3("Albedo", glm::value_ptr(sphere.material.albedo));
 
             ImGui::Separator();
@@ -188,6 +195,8 @@ int main()
         ComputeShader.SetUniformMat4fm("u_InverseProjection", inverseProjection);
         ComputeShader.SetUniformMat4fm("u_InverseView", inverseView);
         ComputeShader.SetUniform1i("u_NumOfSpheres", spheres.size());
+        ComputeShader.SetUniform1ui("u_Time", (uint32_t)(seed * 1000.0f));
+        ComputeShader.SetUniform1i("u_MAX_BOUNCE", MAX_BOUNCE);
 
         const uint32_t workGroupSizeX = 16;
         const uint32_t workGroupSizeY = 16;
