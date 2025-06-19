@@ -19,6 +19,11 @@
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
 
+void ResetFrameIndex(uint32_t& frameIndex)
+{
+    frameIndex = 1;
+}
+
 
 int main()
 { 
@@ -82,6 +87,17 @@ int main()
 
     glTextureStorage2D(frameBuffertextureID, 1, GL_RGBA32F, width, height);
 
+    uint32_t accumulationTextureID;
+    glCreateTextures(GL_TEXTURE_2D, 1, &accumulationTextureID);
+
+    glTextureParameteri(accumulationTextureID, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTextureParameteri(accumulationTextureID, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    glTextureParameteri(accumulationTextureID, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(accumulationTextureID, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    glTextureStorage2D(accumulationTextureID, 1, GL_RGBA32F, width, height);
+
     uint32_t framebufferID;
     glCreateFramebuffers(1, &framebufferID);
 
@@ -101,19 +117,38 @@ int main()
 
     Scene scene;
 
-    scene.AddObject(Sphere(glm::vec3{ 0.0f, 0.0f, 0.0f }, 1.0f, Material(glm::vec3(1.0f, 0.0f, 1.0f), 1.0f)));
-    scene.AddObject(Sphere(glm::vec3{ -6.0f, 0.0f, -6.0f }, 2.5f, Material(glm::vec3(0.2f, 0.3f, 1.0f), 1.0f)));
-    scene.AddObject(Sphere(glm::vec3{ 0.0f, -102.5f, 0.0f }, 100.0f, Material(glm::vec3(0.2f, 0.3f, 1.0f), 1.0f)));
+    Material emissiveMaterial;
+    emissiveMaterial.albedo = glm::vec3{0.1, 0.7, 0.1};
+    emissiveMaterial.roughness = 1.0f;
+    emissiveMaterial.EmissionColor = glm::vec3{ 0.1, 0.7, 0.1 };
+    emissiveMaterial.EmissionPower = 2.0f;
+
+    scene.AddObject(Sphere(glm::vec3{ 0.0f, 0.0f, 0.0f }, 1.0f, 0, 1));
+    scene.AddObject(Sphere(glm::vec3{ -6.0f, 0.0f, -6.0f }, 2.5f, 1, 1));
+    scene.AddObject(Sphere(glm::vec3{ 0.0f, -102.5f, 0.0f }, 100.0f, 2, 1));
+    //scene.AddObject(Sphere(glm::vec3{ 0.0f, 4.5f, -2.0f }, 1.0f, 3, 2));
+
+    scene.AddMaterial(Material(glm::vec3(1.0f, 0.0f, 1.0f), 1.0f, 0.0f, 0.0, glm::vec3(1.0f, 0.0f, 1.0f), 2.0f));
+    scene.AddMaterial(Material(glm::vec3(0.2f, 0.3f, 1.0f), 1.0f));
+    scene.AddMaterial(Material(glm::vec3(0.7f, 0.7f, 0.6f), 0.1f));
+    scene.AddMaterial(emissiveMaterial);
+
 
     auto& spheres = scene.GetSpheres();
+    auto& materials = scene.GetMaterials();
 
-    uint32_t ssbo;
-    glGenBuffers(1, &ssbo);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, spheres.size() * sizeof(Sphere), spheres.data(), GL_DYNAMIC_DRAW);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbo);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+    uint32_t ubo[2];
+    glGenBuffers(1, &ubo[0]);
+    glBindBuffer(GL_UNIFORM_BUFFER, ubo[0]);
+    glBufferData(GL_UNIFORM_BUFFER, spheres.size() * sizeof(Sphere), spheres.data(), GL_STREAM_DRAW);
+    glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo[0]);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
+    glGenBuffers(1, &ubo[1]);
+    glBindBuffer(GL_UNIFORM_BUFFER, ubo[1]);
+    glBufferData(GL_UNIFORM_BUFFER, materials.size() * sizeof(Material), materials.data(), GL_STREAM_DRAW);
+    glBindBufferBase(GL_UNIFORM_BUFFER, 1, ubo[1]);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
 
     float deltaTime = 0.0f;
@@ -123,6 +158,10 @@ int main()
     float lastRenderTime = 0.0f;
 
     int MAX_BOUNCE = 5;
+    bool accumulate = false;
+    bool reset = false;
+
+    uint32_t frameIndex = 1;
 
     while (!glfwWindowShouldClose(window))
     {
@@ -143,9 +182,15 @@ int main()
         ImGui::Begin("Settings");
         ImGui::Text("Last render: %.3fms", lastRenderTime);
         ImGui::DragInt("Max bounce", &MAX_BOUNCE, 1, 1, 50);
+        ImGui::Checkbox("Accumulate", &accumulate);
+        if (ImGui::Button("Reset"))
+        {
+            reset = true;
+            ResetFrameIndex(frameIndex);
+        };
         ImGui::End();
 
-        ImGui::Begin("Scene");
+        ImGui::Begin("Spheres");
 
         for (size_t i = 0; i < spheres.size(); i++)
         {
@@ -154,9 +199,6 @@ int main()
             Sphere& sphere = spheres[i];
             ImGui::DragFloat3("Position", glm::value_ptr(sphere.position), 0.1f);
             ImGui::DragFloat("Radius", &sphere.radius, 0.1f);
-            ImGui::DragFloat("Roughness", &sphere.material.roughness, 0.05f, 0.0f, 1.0f);
-            ImGui::DragFloat("Metallic", &sphere.material.metallic, 0.05f, 0.0f, 1.0f);
-            ImGui::ColorEdit3("Albedo", glm::value_ptr(sphere.material.albedo));
 
             ImGui::Separator();
 
@@ -164,11 +206,32 @@ int main()
         }
         ImGui::End();
 
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
-        glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, spheres.size() * sizeof(Sphere), spheres.data());
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+        ImGui::Begin("Materials");
+        for (size_t i = 0; i < materials.size(); i++)
+        {
+            ImGui::PushID(i);
 
+            Material& material = materials[i];
+            ImGui::ColorEdit3("Albedo", glm::value_ptr(material.albedo));
+            ImGui::DragFloat("Roughness", &material.roughness, 0.05f, 0.0f, 1.0f);
+            ImGui::DragFloat("Metallic", &material.metallic, 0.05f, 0.0f, 1.0f);
+            ImGui::ColorEdit3("Emission Color", glm::value_ptr(material.EmissionColor));
+            ImGui::DragFloat("Emission Power", &material.EmissionPower, 0.05f, 0.0f, FLT_MAX);
 
+            ImGui::Separator();
+
+            ImGui::PopID();
+        }
+
+        ImGui::End();
+
+        glBindBuffer(GL_UNIFORM_BUFFER, ubo[0]);
+        glBufferSubData(GL_UNIFORM_BUFFER, 0, spheres.size() * sizeof(Sphere), spheres.data());
+        glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+        glBindBuffer(GL_UNIFORM_BUFFER, ubo[1]);
+        glBufferSubData(GL_UNIFORM_BUFFER, 0, materials.size() * sizeof(Material), materials.data());
+        glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
 /*#ifdef _DEBUG
         ImGui::ShowDemoWindow();
@@ -184,8 +247,17 @@ int main()
 
         ComputeShader.Bind();
         glBindImageTexture(0, frameBuffertextureID, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+        glBindImageTexture(1, accumulationTextureID, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
 
-        camera.OnUpdate(deltaTime);
+        if (accumulate)
+        {
+            frameIndex++;
+        }
+
+        bool cameraMoved = camera.OnUpdate(deltaTime);
+
+        static glm::mat4 lastView = glm::mat4(1.0f);
+        lastView = camera.GetView();
 
         const auto& cameraPosition = camera.GetPosition();
         const auto& inverseProjection = camera.GetInverseProjection();
@@ -197,6 +269,8 @@ int main()
         ComputeShader.SetUniform1i("u_NumOfSpheres", spheres.size());
         ComputeShader.SetUniform1ui("u_Time", (uint32_t)(seed * 1000.0f));
         ComputeShader.SetUniform1i("u_MAX_BOUNCE", MAX_BOUNCE);
+        ComputeShader.SetUniform1i("u_SETTINGS", accumulate ? 1 : 0);
+        ComputeShader.SetUniform1i("u_FrameIndex", frameIndex);
 
         const uint32_t workGroupSizeX = 16;
         const uint32_t workGroupSizeY = 16;
@@ -212,6 +286,14 @@ int main()
         glBlitFramebuffer(0, 0, width, height,
             0, 0, width, height,
             GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+
+        if ((cameraMoved || reset) && accumulate)
+        {
+            ResetFrameIndex(frameIndex);
+            std::vector<glm::vec4> clearColor(width * height, glm::vec4(0.0f));
+            glTextureSubImage2D(accumulationTextureID, 0, 0, 0, width, height, GL_RGBA, GL_FLOAT, clearColor.data());
+        }
       
 
         ImGui::Render();
@@ -221,7 +303,7 @@ int main()
         glfwPollEvents();
 
         lastRenderTime = timer.Elapsed();
-
+        reset = false;
     }
 
 

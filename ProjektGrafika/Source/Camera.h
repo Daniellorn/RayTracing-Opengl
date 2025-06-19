@@ -18,7 +18,7 @@ public:
 	const glm::vec3& GetPosition() const { return m_Position; }
 	const glm::vec3& GetDirection() const { return m_ForwardDirection; }
 	 
-	void OnUpdate(float ts); 
+	bool OnUpdate(float ts); 
 
 private:
 

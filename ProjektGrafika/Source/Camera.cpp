@@ -14,7 +14,7 @@ Camera::Camera(GLFWwindow* window, float FOV, float nearClip, float farClip, int
 	RecalculateView();
 }
 
-void Camera::OnUpdate(float ts)
+bool Camera::OnUpdate(float ts)
 {
 	glm::dvec2 mousePosition;
 
@@ -26,7 +26,7 @@ void Camera::OnUpdate(float ts)
 	if (glfwGetMouseButton(m_Window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_RELEASE)
 	{
 		glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-		return;
+		return false;
 	}
 
 	glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -89,6 +89,8 @@ void Camera::OnUpdate(float ts)
 	{
 		RecalculateView();
 	}
+
+	return moved;
 }
 
 void Camera::RecalculateView()
