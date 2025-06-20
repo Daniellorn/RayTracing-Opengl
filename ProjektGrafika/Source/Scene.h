@@ -7,27 +7,30 @@
 
 struct alignas(16) Material
 {
-	glm::vec3 albedo;
-	float roughness;
+	glm::vec4 albedo; //0-15
 
-	float metallic = 0.0f;
-	float pad1 = 0.0f;
+	float roughness; //16-19
 
+	float metallic = 0.0f; //20-23
 
-	glm::vec3 EmissionColor{ 0.0f };
-	float EmissionPower = 0.0f;
-	//float pad2 = 0.0f;
+	//padding 24-32
+	float padding[2] = { 0.0f, 0.0f };
 
-	//float padd[3];
+	 glm::vec4 EmissionColor{ 0.0f }; //32-47
+
+	float EmissionPower = 0.0f; // 48-51
+	//52-64
 };
 
 struct alignas(16) Sphere
 {
-	glm::vec3 position;
-	float radius;
+	glm::vec4 position; //0-15
+	float radius; //16-19
 
-	int materialIndex;
-	int modelType;
+	int materialIndex; //20-23
+	int modelType; // 24-27
+
+	//alignment 27-32
 };
 
 

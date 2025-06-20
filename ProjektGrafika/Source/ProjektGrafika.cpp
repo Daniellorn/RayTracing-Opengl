@@ -109,7 +109,6 @@ int main()
         std::cerr << "Framebuffer error" << std::endl;
     }
 
-
     Shader ComputeShader(RESOURCE_PATH "ComputeShader.glsl");
 
     ComputeShader.Bind();
@@ -118,24 +117,24 @@ int main()
     Scene scene;
 
     Material emissiveMaterial;
-    emissiveMaterial.albedo = glm::vec3{0.1, 0.7, 0.1};
+    emissiveMaterial.albedo = glm::vec4{ 0.8f, 0.7f, 0.1f, 0.0f };
     emissiveMaterial.roughness = 1.0f;
-    emissiveMaterial.EmissionColor = glm::vec3{ 0.1, 0.7, 0.1 };
+    emissiveMaterial.EmissionColor = glm::vec4{ 0.8f, 0.7f, 0.1f, 0.0f };
     emissiveMaterial.EmissionPower = 2.0f;
 
-    scene.AddObject(Sphere(glm::vec3{ 0.0f, 0.0f, 0.0f }, 1.0f, 0, 1));
-    scene.AddObject(Sphere(glm::vec3{ -6.0f, 0.0f, -6.0f }, 2.5f, 1, 1));
-    scene.AddObject(Sphere(glm::vec3{ 0.0f, -102.5f, 0.0f }, 100.0f, 2, 1));
-    //scene.AddObject(Sphere(glm::vec3{ 0.0f, 4.5f, -2.0f }, 1.0f, 3, 2));
+    scene.AddObject(Sphere(glm::vec4{ 0.0f, 0.0f, 0.0f, 0.0f }, 1.0f, 0, 1));
+    scene.AddObject(Sphere(glm::vec4{ -6.0f, 0.0f, -6.0f, 0.0f }, 2.5f, 1, 1));
+    scene.AddObject(Sphere(glm::vec4{ 0.0f, -102.5f, 0.0f, 0.0f }, 100.0f, 2, 1));
+    scene.AddObject(Sphere(glm::vec4{ 1.4f, -4.5f, -50.0f, 0.0f }, 1.0f, 3, 2));
 
-    scene.AddMaterial(Material(glm::vec3(1.0f, 0.0f, 1.0f), 1.0f, 0.0f, 0.0, glm::vec3(1.0f, 0.0f, 1.0f), 2.0f));
-    scene.AddMaterial(Material(glm::vec3(0.2f, 0.3f, 1.0f), 1.0f));
-    scene.AddMaterial(Material(glm::vec3(0.7f, 0.7f, 0.6f), 0.1f));
+    scene.AddMaterial(Material(glm::vec4(1.0f, 0.0f, 1.0f, 0.0f), 1.0f, 0.0f, { 0.0f, 0.0f }, glm::vec4(1.0f, 0.0f, 1.0f, 0.0f), 2.0f));
+    scene.AddMaterial(Material(glm::vec4(0.2f, 0.3f, 1.0f, 0.0f), 1.0f));
+    scene.AddMaterial(Material(glm::vec4(0.7f, 0.7f, 0.6f, 0.0f), 0.1f));
     scene.AddMaterial(emissiveMaterial);
-
 
     auto& spheres = scene.GetSpheres();
     auto& materials = scene.GetMaterials();
+
 
     uint32_t ubo[2];
     glGenBuffers(1, &ubo[0]);
@@ -176,8 +175,6 @@ int main()
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-
-        double seed = glfwGetTime();
 
         ImGui::Begin("Settings");
         ImGui::Text("Last render: %.3fms", lastRenderTime);
@@ -267,7 +264,6 @@ int main()
         ComputeShader.SetUniformMat4fm("u_InverseProjection", inverseProjection);
         ComputeShader.SetUniformMat4fm("u_InverseView", inverseView);
         ComputeShader.SetUniform1i("u_NumOfSpheres", spheres.size());
-        ComputeShader.SetUniform1ui("u_Time", (uint32_t)(seed * 1000.0f));
         ComputeShader.SetUniform1i("u_MAX_BOUNCE", MAX_BOUNCE);
         ComputeShader.SetUniform1i("u_SETTINGS", accumulate ? 1 : 0);
         ComputeShader.SetUniform1i("u_FrameIndex", frameIndex);

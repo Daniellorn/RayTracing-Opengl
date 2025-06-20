@@ -14,23 +14,28 @@ struct Ray
 
 struct Material
 {
-    vec3 albedo;
-    float roughness;
-    float metallic;
-    float padding1;
+    vec4 albedo; //0-15
+    float roughness; //16-19
+    float metallic; //20-23
 
-    vec3 EmissionColor;
-    float EmissionPower;
-	//float padd[3];
+    //padding 24-31
+
+    vec4 EmissionColor; //32-47
+    float EmissionPower; //48-51
+	//alignment 52-64
 };
 
 struct Sphere 
 {
-    vec3 position;
-    float radius;
+    vec4 position; //0-15
+    float radius; // 16-19
     
-    int materialIndex;
-    int modelType; // specular = 0, diffuse = 1, emissive = 2
+    int materialIndex; //20-23
+    int modelType; // 24-27
+    
+    // alignment 28 - 32 
+
+    // specular = 0, diffuse = 1, emissive = 2
 };
 
 struct Light
@@ -123,7 +128,9 @@ vec3 RandomVec3(inout uint seed, float min, float max)
 
 vec3 GetEmission(Material material)
 {
-    return material.EmissionColor * material.EmissionPower;
+    vec4 result = material.EmissionColor * material.EmissionPower;
+
+    return vec3(result.x, result.y, result.z);
 }
 
 
@@ -134,7 +141,7 @@ vec3 RayAt(Ray ray, float t)
 
 float Intersection(Ray ray, Sphere sphere)
 {
-    vec3 oc = ray.origin - sphere.position;
+    vec3 oc = ray.origin - vec3(sphere.position.x, sphere.position.y, sphere.position.z);
 
     float a = dot(ray.direction, ray.direction);
     float b = 2.0 * dot(ray.direction, oc);
@@ -246,7 +253,7 @@ vec3 BounceRay(Ray ray, inout uint seed)
             vec3 unit_direction = normalize(ray.direction);
             float a = 0.5 * (unit_direction.y + 1.0);
             vec3 skyColor = vec3(mix(vec3(1.0, 1.0, 1.0), vec3(0.5, 0.7, 1.0), a));
-            light += skyColor * contribution;
+            //light += skyColor * contribution;
             break;
         }
     
@@ -254,7 +261,7 @@ vec3 BounceRay(Ray ray, inout uint seed)
         Sphere closestSphere = spheres[hitInfo.objectIndex];
         Material closestSphereMaterial = materials[closestSphere.materialIndex];
 
-        vec3 normal = normalize(hitInfo.point - closestSphere.position); 
+        vec3 normal = normalize(hitInfo.point - vec3(closestSphere.position.x, closestSphere.position.y, closestSphere.position.z)); 
         
         hitInfo.normal = normal;
         
@@ -265,11 +272,11 @@ vec3 BounceRay(Ray ray, inout uint seed)
 
         if (closestSphere.modelType == 2)
         {
-            light += GetEmission(closestSphereMaterial);// * closestSphereMaterial.albedo;
+            light += GetEmission(closestSphereMaterial) * contribution;
         }
 
-
-        contribution *= closestSphereMaterial.albedo;
+        vec3 albedo = vec3(closestSphereMaterial.albedo.x, closestSphereMaterial.albedo.y, closestSphereMaterial.albedo.z);
+        contribution *= albedo;
 
 
         ray.origin = hitInfo.point + hitInfo.normal * EPSILON;
@@ -280,7 +287,7 @@ vec3 BounceRay(Ray ray, inout uint seed)
         else if (closestSphere.modelType == 0)
         {
             ray.direction = reflect(ray.direction, 
-            hitInfo.normal + closestSphereMaterial.roughness * RandomVec3(seed, -0.5, 0.5)); //specular
+            hitInfo.normal + closestSphereMaterial.roughness * RandomVec3(seed, -0.5, 0.5)); //pseudospecular
             //ray.direction  - 2 * dot(ray.direction, normal) * normal;
         }
 
@@ -298,8 +305,12 @@ void main()
     if (pixelCoord.x >= imageSize(outputImage).x || pixelCoord.y >= imageSize(outputImage).y)
 		return;
 
-    uint seed = uint(pixelCoord.x * 73856093 ^ pixelCoord.y * 19349663);
-    seed ^= u_Time * 15731;
+    //uint seed = uint(pixelCoord.x * 73856093 ^ pixelCoord.y * 19349663);
+    //seed ^= u_Time * 15731;
+    
+    uint seed = pixelCoord.x + pixelCoord.y * imageSize(outputImage).x;
+    seed *= u_FrameIndex;
+
 
     vec4 accumulatedColor = imageLoad(accumulationImage, pixelCoord);
 
@@ -328,20 +339,6 @@ void main()
     }
     else
     {
-
-        Material m = materials[spheres[0].materialIndex];
-
-
-        //if (isinf(m.EmissionPower))
-        //    imageStore(outputImage, pixelCoord, vec4(1.0, 0.0, 1.0, 1.0));
-        //else if (m.EmissionPower == 0)
-        //    imageStore(outputImage, pixelCoord, vec4(1.0, 0.0, 0.0, 1.0));
-        //else if (m.EmissionPower < 0.0)
-        //    imageStore(outputImage, pixelCoord, vec4(0.0, 1.0, 0.0, 1.0));
-        //else if (m.EmissionPower > 0.0)
-        //    imageStore(outputImage, pixelCoord, vec4(0.5, 1.0, 0.5, 1.0));
-        //else if (isnan(m.EmissionPower))
-        //    imageStore(outputImage, pixelCoord, vec4(0.0, 1.0, 1.0, 1.0));
         vec3 color = BounceRay(ray, seed);
         imageStore(outputImage, pixelCoord, vec4(color, 1.0));
     }
