@@ -31,11 +31,6 @@ struct Sphere
     float radius; // 16-19
     
     int materialIndex; //20-23
-    int modelType; // 24-27
-    
-    // alignment 28 - 32 
-
-    // specular = 0, diffuse = 1, emissive = 2
 };
 
 struct Light
@@ -264,33 +259,20 @@ vec3 BounceRay(Ray ray, inout uint seed)
         vec3 normal = normalize(hitInfo.point - vec3(closestSphere.position.x, closestSphere.position.y, closestSphere.position.z)); 
         
         hitInfo.normal = normal;
-        
-        //float lightIntensity =  InShadow(hitInfo, lightsource) ? 0.0 : max(dot(normal, -lightsource.direction), 0.0); // cos(a)
 
-        //vec3 sphereColor = closestSphere.material.albedo;
-        //sphereColor *= lightIntensity;
-
-        if (closestSphere.modelType == 2)
-        {
-            light += GetEmission(closestSphereMaterial) * contribution;
-        }
+        light += GetEmission(closestSphereMaterial) * contribution;
 
         vec3 albedo = vec3(closestSphereMaterial.albedo.x, closestSphereMaterial.albedo.y, closestSphereMaterial.albedo.z);
         contribution *= albedo;
 
 
         ray.origin = hitInfo.point + hitInfo.normal * EPSILON;
-        if (closestSphere.modelType == 1)
-        {
-            ray.direction = normalize(hitInfo.normal + RandomUnitVec(seed)); //diffuse
-        }
-        else if (closestSphere.modelType == 0)
-        {
-            ray.direction = reflect(ray.direction, 
-            hitInfo.normal + closestSphereMaterial.roughness * RandomVec3(seed, -0.5, 0.5)); //pseudospecular
-            //ray.direction  - 2 * dot(ray.direction, normal) * normal;
-        }
-
+        
+        ray.direction = normalize(hitInfo.normal + RandomUnitVec(seed)); //diffuse
+        
+        //ray.direction = reflect(ray.direction, 
+        //hitInfo.normal + closestSphereMaterial.roughness * RandomVec3(seed, -0.5, 0.5)); //pseudospecular
+        //ray.direction  - 2 * dot(ray.direction, normal) * normal;
 
     }
 
@@ -304,9 +286,6 @@ void main()
 
     if (pixelCoord.x >= imageSize(outputImage).x || pixelCoord.y >= imageSize(outputImage).y)
 		return;
-
-    //uint seed = uint(pixelCoord.x * 73856093 ^ pixelCoord.y * 19349663);
-    //seed ^= u_Time * 15731;
     
     uint seed = pixelCoord.x + pixelCoord.y * imageSize(outputImage).x;
     seed *= u_FrameIndex;

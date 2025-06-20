@@ -12,6 +12,7 @@
 #include <filesystem>
 
 #include "Shader.h"
+#include "Texture.h"
 #include "Camera.h"
 #include "Scene.h"
 #include "Timer.h"
@@ -76,34 +77,18 @@ int main()
 
     Camera camera(window, 45.0f, 0.1f, 100.0f, width, height);
 
-    uint32_t frameBuffertextureID;
-    glCreateTextures(GL_TEXTURE_2D, 1, &frameBuffertextureID);
+    Texture pathTracingTexture(width, height);
+    Texture accumulationTexture(width, height);
 
-    glTextureParameteri(frameBuffertextureID, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTextureParameteri(frameBuffertextureID, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-    glTextureParameteri(frameBuffertextureID, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTextureParameteri(frameBuffertextureID, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    glTextureStorage2D(frameBuffertextureID, 1, GL_RGBA32F, width, height);
-
-    uint32_t accumulationTextureID;
-    glCreateTextures(GL_TEXTURE_2D, 1, &accumulationTextureID);
-
-    glTextureParameteri(accumulationTextureID, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTextureParameteri(accumulationTextureID, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-    glTextureParameteri(accumulationTextureID, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTextureParameteri(accumulationTextureID, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    glTextureStorage2D(accumulationTextureID, 1, GL_RGBA32F, width, height);
+    uint32_t frameBuffertextureID = pathTracingTexture.GetTextureID();
+    uint32_t accumulationTextureID = accumulationTexture.GetTextureID();
 
     uint32_t framebufferID;
-    glCreateFramebuffers(1, &framebufferID);
+    glCreateFramebuffers(1, &frameBuffertextureID);
 
-    glNamedFramebufferTexture(framebufferID, GL_COLOR_ATTACHMENT0, frameBuffertextureID, 0);
+    glNamedFramebufferTexture(frameBuffertextureID, GL_COLOR_ATTACHMENT0, frameBuffertextureID, 0);
 
-    auto fbostatus = glCheckNamedFramebufferStatus(framebufferID, GL_FRAMEBUFFER);
+    auto fbostatus = glCheckNamedFramebufferStatus(frameBuffertextureID, GL_FRAMEBUFFER);
     if (fbostatus != GL_FRAMEBUFFER_COMPLETE)
     {
         std::cerr << "Framebuffer error" << std::endl;
@@ -122,12 +107,12 @@ int main()
     emissiveMaterial.EmissionColor = glm::vec4{ 0.8f, 0.7f, 0.1f, 0.0f };
     emissiveMaterial.EmissionPower = 2.0f;
 
-    scene.AddObject(Sphere(glm::vec4{ 0.0f, 0.0f, 0.0f, 0.0f }, 1.0f, 0, 1));
-    scene.AddObject(Sphere(glm::vec4{ -6.0f, 0.0f, -6.0f, 0.0f }, 2.5f, 1, 1));
-    scene.AddObject(Sphere(glm::vec4{ 0.0f, -102.5f, 0.0f, 0.0f }, 100.0f, 2, 1));
-    scene.AddObject(Sphere(glm::vec4{ 1.4f, -4.5f, -50.0f, 0.0f }, 1.0f, 3, 2));
+    scene.AddObject(Sphere(glm::vec4{ 0.0f, 0.0f, 0.0f, 0.0f }, 1.0f, 0));
+    scene.AddObject(Sphere(glm::vec4{ -6.0f, 0.0f, -6.0f, 0.0f }, 2.5f, 1));
+    scene.AddObject(Sphere(glm::vec4{ 0.0f, -102.5f, 0.0f, 0.0f }, 100.0f, 2));
+    scene.AddObject(Sphere(glm::vec4{ 1.4f, -4.5f, -50.0f, 0.0f }, 40.0f, 3));
 
-    scene.AddMaterial(Material(glm::vec4(1.0f, 0.0f, 1.0f, 0.0f), 1.0f, 0.0f, { 0.0f, 0.0f }, glm::vec4(1.0f, 0.0f, 1.0f, 0.0f), 2.0f));
+    scene.AddMaterial(Material(glm::vec4(1.0f, 0.0f, 1.0f, 0.0f), 1.0f, 0.0f, { 0.0f, 0.0f }, glm::vec4(1.0f, 0.0f, 1.0f, 0.0f), 0.0f));
     scene.AddMaterial(Material(glm::vec4(0.2f, 0.3f, 1.0f, 0.0f), 1.0f));
     scene.AddMaterial(Material(glm::vec4(0.7f, 0.7f, 0.6f, 0.0f), 0.1f));
     scene.AddMaterial(emissiveMaterial);
@@ -243,8 +228,8 @@ int main()
         glfwGetFramebufferSize(window, &width, &height);
 
         ComputeShader.Bind();
-        glBindImageTexture(0, frameBuffertextureID, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
-        glBindImageTexture(1, accumulationTextureID, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+        pathTracingTexture.Bind(0);
+        accumulationTexture.Bind(1);
 
         if (accumulate)
         {
@@ -277,7 +262,7 @@ int main()
         glDispatchCompute(numGroupsX, numGroupsY, 1);
         glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, framebufferID);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, frameBuffertextureID);
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // default framebuffer (ekran)
         glBlitFramebuffer(0, 0, width, height,
             0, 0, width, height,

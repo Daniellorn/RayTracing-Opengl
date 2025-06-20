@@ -28,7 +28,6 @@ struct alignas(16) Sphere
 	float radius; //16-19
 
 	int materialIndex; //20-23
-	int modelType; // 24-27
 
 	//alignment 27-32
 };

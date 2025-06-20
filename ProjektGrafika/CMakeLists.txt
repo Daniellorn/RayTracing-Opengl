@@ -16,6 +16,8 @@ set(SOURCES
 	${SOURCE_DIR}/Scene.cpp 
 	${SOURCE_DIR}/Scene.h
 	${SOURCE_DIR}/Timer.h
+	${SOURCE_DIR}/Texture.h
+	${SOURCE_DIR}/Texture.cpp
 )
 
 set(ImGui_SOURCES
