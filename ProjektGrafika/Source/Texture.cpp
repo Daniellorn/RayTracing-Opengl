@@ -1,6 +1,6 @@
 #include "Texture.h"
 
-#include <glad/gl.h>
+#include <glad/glad.h>
 
 Texture::Texture(int width, int height) :
     m_TextureID(0), m_width(width), m_height(height)

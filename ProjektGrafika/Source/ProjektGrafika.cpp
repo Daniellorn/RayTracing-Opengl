@@ -1,4 +1,4 @@
-﻿#include <glad/gl.h>
+﻿#include <glad/glad.h>
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
@@ -71,10 +71,9 @@ int main()
     ImGui_ImplOpenGL3_Init();
 
 
-    int version = gladLoadGL(glfwGetProcAddress);
-    if (version == 0)
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
-        std::cerr << "Failed to initialize OpenGL context" << std::endl;
+        std::cout << "Failed to initialize OpenGL context" << std::endl;
         return -1;
     }
 

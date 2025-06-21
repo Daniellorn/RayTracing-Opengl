@@ -29,22 +29,22 @@ endif()
 find_package(OpenGL REQUIRED)
 
 # glad
-FetchContent_Declare(
-	glad 
-	DOWNLOAD_EXTRACT_TIMESTAMP OFF
-	URL https://github.com/Dav1dde/glad/archive/refs/tags/v2.0.8.zip
-)
+#FetchContent_Declare(
+#	glad 
+#	DOWNLOAD_EXTRACT_TIMESTAMP OFF
+#	URL https://github.com/Dav1dde/glad/archive/refs/tags/v2.0.8.zip
+#)
 
-FetchContent_GetProperties(glad)
-if (NOT glad_POPULATED)
-	set(FETCHCONTENT_QUIET NO)
-	FetchContent_MakeAvailable(glad)
+#FetchContent_GetProperties(glad)
+#if (NOT glad_POPULATED)
+#	set(FETCHCONTENT_QUIET NO)
+#	FetchContent_MakeAvailable(glad)
+#
+#	add_subdirectory("${glad_SOURCE_DIR}/cmake" glad_cmake)
+#	glad_add_library(glad REPRODUCIBLE EXCLUDE_FROM_ALL LOADER API gl:core=4.6)
+#endif()
 
-	add_subdirectory("${glad_SOURCE_DIR}/cmake" glad_cmake)
-	glad_add_library(glad REPRODUCIBLE EXCLUDE_FROM_ALL LOADER API gl:core=4.6)
-endif()
-
-set_target_properties(glad PROPERTIES FOLDER "Dependencies")
+#set_target_properties(glad PROPERTIES FOLDER "Dependencies")
 
 # glm
 FetchContent_Declare(
@@ -60,6 +60,8 @@ if (POLICY CMP0141)
   set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
 endif()
 
+add_library(glad STATIC ProjektGrafika/vendor/glad/src/glad.c)
+target_include_directories(glad PUBLIC ProjektGrafika/vendor/glad/include)
 
 # Include sub-projects.
 add_subdirectory ("ProjektGrafika")

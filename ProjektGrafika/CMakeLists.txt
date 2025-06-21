@@ -3,13 +3,13 @@
 #
 
 set(SOURCE_DIR "Source")
-set(IMGUI_PATH "${SOURCE_DIR}/vendor/ImGui/imgui")
+set(IMGUI_PATH "vendor/ImGui/imgui")
 
 set(SOURCES
 	${SOURCE_DIR}/ProjektGrafika.cpp
 	${SOURCE_DIR}/Shader.h
 	${SOURCE_DIR}/Shader.cpp
-	${SOURCE_DIR}/vendor/stb_image/stb_image.cpp
+	vendor/stb_image/stb_image.cpp
 	${SOURCE_DIR}/Assert.h
 	${SOURCE_DIR}/Camera.h
 	${SOURCE_DIR}/Camera.cpp
@@ -51,8 +51,8 @@ add_executable(ProjektGrafika ${SOURCES})
 target_link_libraries(ProjektGrafika glfw)
 target_link_libraries(ProjektGrafika glad)
 target_link_libraries(ProjektGrafika glm::glm)
-target_include_directories(ProjektGrafika PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/Source/vendor/stb_image)
-target_include_directories(ProjektGrafika PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/Source/vendor/ImGui/imgui)
+target_include_directories(ProjektGrafika PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb_image)
+target_include_directories(ProjektGrafika PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/vendor/ImGui/imgui)
 
 target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC RESOURCE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/res/shaders/")
 
