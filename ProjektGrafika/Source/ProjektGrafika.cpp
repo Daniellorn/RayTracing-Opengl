@@ -84,22 +84,10 @@ int main()
 
     Camera camera(window, 45.0f, 0.1f, 100.0f, width, height);
 
-    Texture pathTracingTexture(width, height); // TO JEST DO ZMIANY, WEZ ZROB NORMALNA FUNKCJE 
-    Texture accumulationTexture(width, height);
+    Texture pathTracingTexture = CreateTexture(width, height);
+    Texture accumulationTexture = CreateTexture(width, height);
 
-    uint32_t frameBuffertextureID = pathTracingTexture.GetTextureID();
-    uint32_t accumulationTextureID = accumulationTexture.GetTextureID();
-
-    uint32_t framebufferID;
-    glCreateFramebuffers(1, &frameBuffertextureID);
-
-    glNamedFramebufferTexture(frameBuffertextureID, GL_COLOR_ATTACHMENT0, frameBuffertextureID, 0);
-
-    auto fbostatus = glCheckNamedFramebufferStatus(frameBuffertextureID, GL_FRAMEBUFFER);
-    if (fbostatus != GL_FRAMEBUFFER_COMPLETE)
-    {
-        std::cerr << "Framebuffer error" << std::endl;
-    }
+    Framebuffer fb = CreateFramebuffer(pathTracingTexture);
 
     Shader ComputeShader(RESOURCE_PATH "ComputeShader.glsl");
 
@@ -149,6 +137,7 @@ int main()
     float lastRenderTime = 0.0f;
 
     int MAX_BOUNCE = 5;
+    int MAX_SAMPLES = 10;
     bool accumulate = false;
     bool reset = false;
 
@@ -171,6 +160,7 @@ int main()
         ImGui::Begin("Settings");
         ImGui::Text("Last render: %.3fms", lastRenderTime);
         ImGui::DragInt("Max bounce", &MAX_BOUNCE, 1, 1, 50);
+        ImGui::DragInt("Max samples", &MAX_SAMPLES, 1, 1, 100);
         ImGui::Checkbox("Accumulate", &accumulate);
         if (ImGui::Button("Reset"))
         {
@@ -214,6 +204,24 @@ int main()
 
         ImGui::End();
 
+
+        if (width != pathTracingTexture.width || height != pathTracingTexture.height)
+        {
+            glDeleteTextures(1, &pathTracingTexture.textureID);
+            glDeleteTextures(1, &accumulationTexture.textureID);
+            pathTracingTexture = CreateTexture(width, height);
+            accumulationTexture = CreateTexture(width, height);
+
+            if (!AttachTextureToFramebuffer(fb, pathTracingTexture))
+            {
+                std::cerr << "Resize failed\n";
+                return -1;
+            }
+
+            camera.OnResize(width, height);
+        }
+
+
         glBindBuffer(GL_UNIFORM_BUFFER, ubo[0]);
         glBufferSubData(GL_UNIFORM_BUFFER, 0, spheres.size() * sizeof(Sphere), spheres.data());
         glBindBuffer(GL_UNIFORM_BUFFER, 0);
@@ -235,8 +243,8 @@ int main()
         glfwGetFramebufferSize(window, &width, &height);
 
         ComputeShader.Bind();
-        pathTracingTexture.Bind(0);
-        accumulationTexture.Bind(1);
+        glBindImageTexture(0, fb.frameBufferTex.textureID, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+        glBindImageTexture(1, accumulationTexture.textureID, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
 
         if (accumulate)
         {
@@ -257,6 +265,7 @@ int main()
         ComputeShader.SetUniformMat4fm("u_InverseView", inverseView);
         ComputeShader.SetUniform1i("u_NumOfSpheres", spheres.size());
         ComputeShader.SetUniform1i("u_MAX_BOUNCE", MAX_BOUNCE);
+        ComputeShader.SetUniform1i("u_MAX_SAMPLES", MAX_SAMPLES);
         ComputeShader.SetUniform1i("u_SETTINGS", accumulate ? 1 : 0);
         ComputeShader.SetUniform1i("u_FrameIndex", frameIndex);
 
@@ -269,18 +278,14 @@ int main()
         glDispatchCompute(numGroupsX, numGroupsY, 1);
         glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, frameBuffertextureID);
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // default framebuffer (ekran)
-        glBlitFramebuffer(0, 0, width, height,
-            0, 0, width, height,
-            GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        BlitFrambuffer(fb);
 
 
         if ((cameraMoved || reset) && accumulate)
         {
             ResetFrameIndex(frameIndex);
             std::vector<glm::vec4> clearColor(width * height, glm::vec4(0.0f));
-            glTextureSubImage2D(accumulationTextureID, 0, 0, 0, width, height, GL_RGBA, GL_FLOAT, clearColor.data());
+            glTextureSubImage2D(accumulationTexture.textureID, 0, 0, 0, width, height, GL_RGBA, GL_FLOAT, clearColor.data());
         }
       
 

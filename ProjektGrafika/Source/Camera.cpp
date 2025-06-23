@@ -4,7 +4,7 @@
 
 #include "Camera.h"
 
-Camera::Camera(GLFWwindow* window, float FOV, float nearClip, float farClip, int width, int height)
+Camera::Camera(GLFWwindow* window, float FOV, float nearClip, float farClip, uint32_t width, uint32_t height)
 	: m_Window(window), m_FOV(FOV), m_NearClip(nearClip), m_FarClip(farClip), m_Width(width), m_Height(height)
 {
 	m_ForwardDirection = glm::vec3(0.0f, 0.0f, -1.0f);
@@ -91,6 +91,19 @@ bool Camera::OnUpdate(float ts)
 	}
 
 	return moved;
+}
+
+void Camera::OnResize(uint32_t width, uint32_t height)
+{
+	if (m_Width == width && m_Height == height)
+	{
+		return;
+	}
+
+	m_Width = width;
+	m_Height = height;
+
+	RecalculateView();
 }
 
 void Camera::RecalculateView()

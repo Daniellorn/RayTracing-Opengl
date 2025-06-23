@@ -4,6 +4,8 @@ const float MAX_FLOAT = 3.402823466e+38;
 const uint MAX_UINT = 4294967295;
 const float EPSILON = 0.001;
 const int MAX_OBJECTS = 100;
+const float PI = 3.141592;
+const float invPI = 1 / PI;
 
 
 struct Ray
@@ -33,10 +35,19 @@ struct Sphere
     int materialIndex; //20-23
 };
 
-struct Light
+struct DirectionalLight
 {
     vec3 direction;
     vec3 color;
+    float intensity;
+};
+
+struct PointLight
+{
+    vec3 position;
+    vec3 color;
+    float intensity;
+    float reach;
 };
 
 struct HitInfo
@@ -65,11 +76,13 @@ uniform mat4 u_InverseProjection;
 uniform mat4 u_InverseView;
 uniform uint u_Time;
 uniform int u_MAX_BOUNCE;
+uniform int u_MAX_SAMPLES;
 uniform int u_NumOfSpheres;
 uniform bool u_SETTINGS;
 uniform int u_FrameIndex;
 
-//Light lightsource = Light(normalize(vec3(-1.0, -1.0, -1.0)), vec3(1.0));
+DirectionalLight DLight = DirectionalLight(normalize(vec3(-1.0, -1.0, -1.0)), vec3(0.9, 0.2, 0.3), 1.0);
+PointLight PLight = PointLight(vec3(0.0, 15.0, 0.0), vec3(1.0), 80.0, 50.0);
 
 
 uint PCG_Hash(uint hash)
@@ -98,7 +111,7 @@ vec3 RandomUnitVec(inout uint seed)
         RandomFloat(seed) * 2.0 - 1.0));
 }
 
-vec3 RandomVec3OnUnitSphere(inout uint seed, vec3 normal)
+vec3 RandomVec3OnUnitHemiSphere(inout uint seed, vec3 normal)
 {
     vec3 randomvec = RandomUnitVec(seed);
 
@@ -121,6 +134,34 @@ vec3 RandomVec3(inout uint seed, float min, float max)
     );
 }
 
+vec3 DirectionalLightContribution(DirectionalLight Light, HitInfo info, Material mat)
+{
+    vec3 L = -Light.direction;
+    vec3 N = info.normal;
+    float NdotL = max(dot(N,L), 0.0);
+
+    vec3 radiance = Light.color * Light.intensity * NdotL;
+
+    return radiance * vec3(mat.albedo.xyz);
+}
+
+vec3 PointLightContribution(PointLight Light, HitInfo info, Material mat)
+{
+    vec3 L = Light.position - info.point;
+    vec3 N = info.normal;
+    float Distance = length(L);
+
+    if (Distance >= Light.reach)
+        return vec3(0.0);
+
+    float NdotL = max(dot(N,normalize(L)), 0.0);
+
+    float attenuation = 1.0 / (Distance * Distance);
+    vec3 radiance = Light.color * Light.intensity * NdotL * attenuation;
+
+    return radiance * vec3(mat.albedo.xyz);
+}
+
 vec3 GetEmission(Material material)
 {
     vec4 result = material.EmissionColor * material.EmissionPower;
@@ -128,6 +169,35 @@ vec3 GetEmission(Material material)
     return vec3(result.x, result.y, result.z);
 }
 
+float D(vec3 normal, vec3 H, float roughness) //DistributionFunctionGXX
+{
+    float roughenss2 = pow(roughness, 2.0);
+    float NdotH = max(dot(normal, H), 0.0);
+    float NdotH2 = pow(NdotH, 2.0);
+
+    float denom = PI * (NdotH2 * (roughenss2 - 1) + 1);
+    denom = max(denom, 0.0001);
+
+    return roughenss2 / pow(denom, 2.0);
+}
+
+float Gshlick(vec3 normal, vec3 V, float roughenss)
+{
+    float NdotV = max(dot(normal,V), 0.0);
+    float k = roughenss / 2.0;
+
+    return NdotV / (NdotV * (1 - k) + k);
+}
+
+float G(float roughenss, vec3 normal, vec3 V, vec3 lightdir)
+{
+    return Gshlick(normal, V, roughenss) * Gshlick(normal, lightdir, roughenss);
+}
+
+vec3 FresnelSchlick(vec3 albedo, vec3 V, vec3 H)
+{
+    return albedo + (1 - albedo) * pow(1 - max(dot(V, H), 0.0), 5.0);
+}
 
 vec3 RayAt(Ray ray, float t)
 {
@@ -176,7 +246,7 @@ HitInfo Miss()
     return hitInfo;
 }
 
-HitInfo TraceRay(Ray ray)
+HitInfo CheckIntersection(Ray ray)
 {
     HitInfo hitInfo;
     hitInfo.hitDistance = MAX_FLOAT;
@@ -209,23 +279,23 @@ HitInfo TraceRay(Ray ray)
     return  hitInfo;
 }
 
-bool InShadow(HitInfo hitInfo, Light lightSource)
+bool InShadow(vec3 origin, vec3 directionToLight, float maxDistance)
 {
     Ray shadowRay;
-    shadowRay.origin = hitInfo.point + hitInfo.normal * EPSILON;
-    shadowRay.direction = -lightSource.direction;
+    shadowRay.origin = origin + directionToLight * EPSILON;
+    shadowRay.direction = directionToLight;
 
     for (int i = 0; i < u_NumOfSpheres; i++)
     {
         float t = Intersection(shadowRay, spheres[i]);
 
-        if (t < 0.0)
+        if (t > 0.0 && t < maxDistance)
         {
-            continue;
-        }
+            Material mat = materials[spheres[i].materialIndex];
 
-        if (t > 0.0)
-        {
+            if (mat.EmissionPower > 0.0)
+                continue;
+
             return true;
         }
     }
@@ -234,14 +304,14 @@ bool InShadow(HitInfo hitInfo, Light lightSource)
 }
 
 
-vec3 BounceRay(Ray ray, inout uint seed)
+vec3 TraceRay(Ray ray, inout uint seed)
 {
     vec3 light = vec3(0.0);
     vec3 contribution = vec3(1.0);
 
     for (int i = 0; i < u_MAX_BOUNCE; i++)
     {
-        HitInfo hitInfo = TraceRay(ray);
+        HitInfo hitInfo = CheckIntersection(ray);
 
         if (hitInfo.hitDistance < 0.0)
         {
@@ -256,23 +326,26 @@ vec3 BounceRay(Ray ray, inout uint seed)
         Sphere closestSphere = spheres[hitInfo.objectIndex];
         Material closestSphereMaterial = materials[closestSphere.materialIndex];
 
-        vec3 normal = normalize(hitInfo.point - vec3(closestSphere.position.x, closestSphere.position.y, closestSphere.position.z)); 
+        vec3 normal = normalize(hitInfo.point - vec3(closestSphere.position.xyz)); 
         
         hitInfo.normal = normal;
 
         light += GetEmission(closestSphereMaterial) * contribution;
 
-        vec3 albedo = vec3(closestSphereMaterial.albedo.x, closestSphereMaterial.albedo.y, closestSphereMaterial.albedo.z);
-        contribution *= albedo;
+        vec3 lightDir = PLight.position - hitInfo.point;
+        float lightDist = length(lightDir);
+
+        //if (!InShadow(hitInfo.point, normalize(lightDir), lightDist))
+        //{
+        //    light += PointLightContribution(PLight, hitInfo, closestSphereMaterial) * contribution;
+        //}
+
+        vec3 albedo = vec3(closestSphereMaterial.albedo.xyz);
+        contribution *= albedo; //* invPI;
 
 
         ray.origin = hitInfo.point + hitInfo.normal * EPSILON;
-        
-        ray.direction = normalize(hitInfo.normal + RandomUnitVec(seed)); //diffuse
-        
-        //ray.direction = reflect(ray.direction, 
-        //hitInfo.normal + closestSphereMaterial.roughness * RandomVec3(seed, -0.5, 0.5)); //pseudospecular
-        //ray.direction  - 2 * dot(ray.direction, normal) * normal;
+        ray.direction = normalize(RandomVec3OnUnitHemiSphere(seed, hitInfo.normal)) ; //diffuse
 
     }
 
@@ -307,18 +380,32 @@ void main()
     ray.origin = u_CameraPosition;
     ray.direction = vec3(u_InverseView * vec4(normalize(vec3(target) / target.w), 0));
 
+    vec3 totalColor = vec3(0.0);
+
+    for (int i = 0; i < u_MAX_SAMPLES; i++)
+    {
+        vec3 jitteredDirection = ray.direction;
+        jitteredDirection += RandomVec3(seed, -0.001, 0.001);
+        
+        Ray jitteredRay = Ray(ray.origin, jitteredDirection);
+
+        totalColor += TraceRay(jitteredRay, seed);
+    }
+
+    vec3 avgColor = totalColor / float(u_MAX_SAMPLES);
+
     if (u_SETTINGS)
     {
-        vec3 color = BounceRay(ray, seed);
 
-        vec3 blended = mix(accumulatedColor.rgb, color, 1.0 / float(u_FrameIndex));
+        vec3 blended = mix(accumulatedColor.rgb, avgColor, 1.0 / float(u_FrameIndex));
         imageStore(accumulationImage, pixelCoord, vec4(blended, 1.0));
         imageStore(outputImage, pixelCoord, vec4(blended, 1.0));
 
     }
     else
     {
-        vec3 color = BounceRay(ray, seed);
-        imageStore(outputImage, pixelCoord, vec4(color, 1.0));
+        //vec3 color = TraceRay(ray, seed);
+        imageStore(outputImage, pixelCoord, vec4(avgColor, 1.0));
     }
+
 }

@@ -7,7 +7,7 @@
 class Camera
 {
 public:
-	Camera(GLFWwindow* window, float FOV, float nearClip, float farClip, int width, int height);
+	Camera(GLFWwindow* window, float FOV, float nearClip, float farClip, uint32_t width, uint32_t height);
 	~Camera() = default;
 
 	const glm::mat4& GetProjection() const { return m_Projection; }
@@ -19,6 +19,7 @@ public:
 	const glm::vec3& GetDirection() const { return m_ForwardDirection; }
 	 
 	bool OnUpdate(float ts); 
+	void OnResize(uint32_t width, uint32_t height);
 
 private:
 
@@ -44,5 +45,5 @@ private:
 
 	glm::dvec2 m_LastMousePosition{ 0.0, 0.0 };
 
-	int m_Width, m_Height;
+	uint32_t m_Width, m_Height;
 };

@@ -2,26 +2,20 @@
 
 #include <cstdint>
 
-class Texture
+struct Texture
 {
-public:
-
-	Texture(int width, int height);
-	~Texture();
-
-	void Bind(int slot) const;
-	void Resize(int width, int height);
-
-	uint32_t GetTextureID() const;
-
-private:
-
-	void CreateTexture();
-
-private:
-
-	uint32_t m_TextureID;
-
-	int m_width, m_height;
-
+	uint32_t textureID;
+	int width, height;
 };
+
+struct Framebuffer
+{
+	uint32_t framebufferID;
+	Texture frameBufferTex;
+};
+
+Texture CreateTexture(int width, int height);
+
+Framebuffer CreateFramebuffer(const Texture texture);
+bool AttachTextureToFramebuffer(Framebuffer& fb, const Texture texture);
+void BlitFrambuffer(const Framebuffer fb);

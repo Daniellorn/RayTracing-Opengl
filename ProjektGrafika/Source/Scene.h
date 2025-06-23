@@ -33,6 +33,15 @@ struct alignas(16) Sphere
 };
 
 
+struct Lights
+{
+	glm::vec4 position;
+	glm::vec4 color;
+	float radius;
+	float intensity;
+};
+
+
 class Scene
 {
 public:
@@ -49,5 +58,7 @@ public:
 private:
 	std::vector<Sphere> m_Objects;
 	std::vector<Material> m_Materials;
+
+	int m_Bounces = 5;
 	
 };

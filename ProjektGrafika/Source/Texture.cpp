@@ -1,53 +1,68 @@
 #include "Texture.h"
 
 #include <glad/glad.h>
+#include <iostream>
 
-Texture::Texture(int width, int height) :
-    m_TextureID(0), m_width(width), m_height(height)
+
+Texture CreateTexture(int width, int height)
 {
-    CreateTexture();
+    Texture tex{
+        .width = width,
+        .height = height
+    };
+
+    glCreateTextures(GL_TEXTURE_2D, 1, &tex.textureID);
+
+    glTextureParameteri(tex.textureID, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTextureParameteri(tex.textureID, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    glTextureParameteri(tex.textureID, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(tex.textureID, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    glTextureStorage2D(tex.textureID, 1, GL_RGBA32F, width, height);
+
+
+    return tex;
 }
 
-Texture::~Texture()
+Framebuffer CreateFramebuffer(const Texture texture)
 {
-    glDeleteTextures(1, &m_TextureID);
-}
+    Framebuffer fb;
+    fb.frameBufferTex = texture;
 
-void Texture::Bind(int slot) const
-{
-    glBindImageTexture(slot, m_TextureID, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
-}
+    glCreateFramebuffers(1, &fb.framebufferID);
 
-void Texture::Resize(int width, int height)
-{
-    if (m_width != width || m_height != height)
+    if (!AttachTextureToFramebuffer(fb, texture))
     {
-        if (m_TextureID)
-        {
-            glDeleteTextures(1, &m_TextureID);
-        }
-
-        CreateTexture();
-
-        m_width = width;
-        m_height = height;
+        glDeleteFramebuffers(1, &fb.framebufferID);
+        return {};
     }
+
+    return fb;
 }
 
-uint32_t Texture::GetTextureID() const
+bool AttachTextureToFramebuffer(Framebuffer& fb, const Texture texture)
 {
-    return m_TextureID;
+    glNamedFramebufferTexture(fb.framebufferID, GL_COLOR_ATTACHMENT0, texture.textureID, 0);
+
+    auto fbostatus = glCheckNamedFramebufferStatus(fb.framebufferID, GL_FRAMEBUFFER);
+    if (fbostatus != GL_FRAMEBUFFER_COMPLETE)
+    {
+        std::cerr << "Framebuffer error" << std::endl;
+        return false;
+    }
+    fb.frameBufferTex = texture;
+
+    return true;
 }
 
-void Texture::CreateTexture()
+void BlitFrambuffer(const Framebuffer fb)
 {
-    glCreateTextures(GL_TEXTURE_2D, 1, &m_TextureID);
-
-    glTextureParameteri(m_TextureID, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTextureParameteri(m_TextureID, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-    glTextureParameteri(m_TextureID, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTextureParameteri(m_TextureID, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    glTextureStorage2D(m_TextureID, 1, GL_RGBA32F, m_width, m_height);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, fb.framebufferID);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // default framebuffer (ekran)
+    glBlitFramebuffer(0, 0, fb.frameBufferTex.width, fb.frameBufferTex.height,
+        0, 0, fb.frameBufferTex.width, fb.frameBufferTex.height,
+        GL_COLOR_BUFFER_BIT, GL_NEAREST);
 }
+
+
