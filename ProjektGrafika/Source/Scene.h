@@ -4,6 +4,13 @@
 
 #include "glm/glm.hpp"
 
+enum class Model
+{
+	DIFFUSE = 0,
+	SPECULAR,
+	EMISSIVE
+};
+
 
 struct alignas(16) Material
 {
@@ -28,7 +35,7 @@ struct alignas(16) Sphere
 	float radius; //16-19
 
 	int materialIndex; //20-23
-
+	int type;
 	//alignment 27-32
 };
 

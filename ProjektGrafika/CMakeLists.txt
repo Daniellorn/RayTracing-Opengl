@@ -55,6 +55,7 @@ target_include_directories(ProjektGrafika PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ve
 target_include_directories(ProjektGrafika PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/vendor/ImGui/imgui)
 
 target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC RESOURCE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/res/shaders/")
+target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC CUBE_MAP="${CMAKE_CURRENT_SOURCE_DIR}/res/CubeMap/")
 
 #add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 #    COMMAND ${CMAKE_COMMAND} -E copy_directory

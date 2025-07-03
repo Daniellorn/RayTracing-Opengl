@@ -33,6 +33,7 @@ struct Sphere
     float radius; // 16-19
     
     int materialIndex; //20-23
+    int type;
 };
 
 struct DirectionalLight
@@ -60,8 +61,11 @@ struct HitInfo
     int materialIndex;
 };
 
+layout(binding = 2) uniform sampler2D u_SkyboxEquirect;
+
 layout(rgba32f, binding = 0) uniform writeonly image2D outputImage;
 layout(rgba32f, binding = 1) uniform image2D accumulationImage;
+
 layout(local_size_x = 16, local_size_y = 16) in;
 layout(std140, binding = 0) uniform SpheresBuffer {
     Sphere spheres[MAX_OBJECTS];
@@ -80,10 +84,16 @@ uniform int u_MAX_SAMPLES;
 uniform int u_NumOfSpheres;
 uniform bool u_SETTINGS;
 uniform int u_FrameIndex;
+uniform float u_Exposure;
 
 DirectionalLight DLight = DirectionalLight(normalize(vec3(-1.0, -1.0, -1.0)), vec3(0.9, 0.2, 0.3), 1.0);
 PointLight PLight = PointLight(vec3(0.0, 15.0, 0.0), vec3(1.0), 80.0, 50.0);
 
+vec2 dirToUV(vec3 dir) {
+    float u = (atan(dir.z, dir.x) / PI * 0.5) + 0.5;
+    float v = (acos(dir.y) / PI);
+    return vec2(u, v);
+}
 
 uint PCG_Hash(uint hash)
 {
@@ -167,36 +177,6 @@ vec3 GetEmission(Material material)
     vec4 result = material.EmissionColor * material.EmissionPower;
 
     return vec3(result.x, result.y, result.z);
-}
-
-float D(vec3 normal, vec3 H, float roughness) //DistributionFunctionGXX
-{
-    float roughenss2 = pow(roughness, 2.0);
-    float NdotH = max(dot(normal, H), 0.0);
-    float NdotH2 = pow(NdotH, 2.0);
-
-    float denom = PI * (NdotH2 * (roughenss2 - 1) + 1);
-    denom = max(denom, 0.0001);
-
-    return roughenss2 / pow(denom, 2.0);
-}
-
-float Gshlick(vec3 normal, vec3 V, float roughenss)
-{
-    float NdotV = max(dot(normal,V), 0.0);
-    float k = roughenss / 2.0;
-
-    return NdotV / (NdotV * (1 - k) + k);
-}
-
-float G(float roughenss, vec3 normal, vec3 V, vec3 lightdir)
-{
-    return Gshlick(normal, V, roughenss) * Gshlick(normal, lightdir, roughenss);
-}
-
-vec3 FresnelSchlick(vec3 albedo, vec3 V, vec3 H)
-{
-    return albedo + (1 - albedo) * pow(1 - max(dot(V, H), 0.0), 5.0);
 }
 
 vec3 RayAt(Ray ray, float t)
@@ -315,10 +295,15 @@ vec3 TraceRay(Ray ray, inout uint seed)
 
         if (hitInfo.hitDistance < 0.0)
         {
-            vec3 unit_direction = normalize(ray.direction);
-            float a = 0.5 * (unit_direction.y + 1.0);
-            vec3 skyColor = vec3(mix(vec3(1.0, 1.0, 1.0), vec3(0.5, 0.7, 1.0), a));
-            //light += skyColor * contribution;
+            //vec3 unit_direction = normalize(ray.direction);
+            //float a = 0.5 * (unit_direction.y + 1.0);
+            //vec3 skyColor = vec3(mix(vec3(1.0, 1.0, 1.0), vec3(0.5, 0.7, 1.0), a));
+
+            vec3 unitDir = normalize(ray.direction);
+            vec2 uv = dirToUV(unitDir);
+            vec3 skyColor = texture(u_SkyboxEquirect, uv).rgb;
+            light += skyColor * contribution;
+
             break;
         }
     
@@ -345,7 +330,11 @@ vec3 TraceRay(Ray ray, inout uint seed)
 
 
         ray.origin = hitInfo.point + hitInfo.normal * EPSILON;
-        ray.direction = normalize(RandomVec3OnUnitHemiSphere(seed, hitInfo.normal)) ; //diffuse
+
+        vec3 diffuseDir = normalize(RandomVec3OnUnitHemiSphere(seed, hitInfo.normal)); //diffuse
+        vec3 specularDir = reflect(ray.direction, normal); // ray.direction - 2.0 * dot(normal, ray.direction) * normal;
+
+        ray.direction = mix(diffuseDir, specularDir, closestSphereMaterial.roughness);
 
     }
 
@@ -393,6 +382,9 @@ void main()
     }
 
     vec3 avgColor = totalColor / float(u_MAX_SAMPLES);
+
+    avgColor = vec3(1.0) - exp(-avgColor * u_Exposure);
+    avgColor = pow(avgColor, vec3(1.0 / 2.2));
 
     if (u_SETTINGS)
     {

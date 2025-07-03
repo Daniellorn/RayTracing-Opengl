@@ -3,6 +3,8 @@
 #include <glad/glad.h>
 #include <iostream>
 
+#include "stb_image.h"
+
 
 Texture CreateTexture(int width, int height)
 {
@@ -23,6 +25,36 @@ Texture CreateTexture(int width, int height)
 
 
     return tex;
+}
+
+uint32_t CreateCubeMap(std::filesystem::path filepath)
+{
+
+    int width, height, nrComponents;
+
+    float* data = stbi_loadf(filepath.string().c_str(), &width, &height, &nrComponents, 0);
+    if (!data)
+    {
+        std::cerr << "Failed to load HDR image\n";
+        return -1;
+    }
+
+    uint32_t hdrTexture;
+    glCreateTextures(GL_TEXTURE_2D, 1, &hdrTexture);
+    glTextureStorage2D(hdrTexture, 1, GL_RGB32F, width, height);
+
+    glTextureParameteri(hdrTexture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(hdrTexture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(hdrTexture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTextureParameteri(hdrTexture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glTextureSubImage2D(hdrTexture, 0, 0, 0, width, height, GL_RGB, GL_FLOAT, data);
+
+    stbi_image_free(data);
+
+    glBindTextureUnit(2, hdrTexture);
+
+    return hdrTexture;
 }
 
 Framebuffer CreateFramebuffer(const Texture texture)

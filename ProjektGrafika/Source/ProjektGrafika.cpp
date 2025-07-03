@@ -86,6 +86,8 @@ int main()
 
     Texture pathTracingTexture = CreateTexture(width, height);
     Texture accumulationTexture = CreateTexture(width, height);
+    uint32_t HDRTexID = CreateCubeMap(CUBE_MAP "lakeside_sunrise_4k.hdr");
+    //uint32_t HDRTexID = CreateCubeMap(CUBE_MAP "passendorf_snow_4k.hdr");
 
     Framebuffer fb = CreateFramebuffer(pathTracingTexture);
 
@@ -102,14 +104,16 @@ int main()
     emissiveMaterial.EmissionColor = glm::vec4{ 0.8f, 0.7f, 0.1f, 0.0f };
     emissiveMaterial.EmissionPower = 2.0f;
 
-    scene.AddObject(Sphere(glm::vec4{ 0.0f, 0.0f, 0.0f, 0.0f }, 1.0f, 0));
-    scene.AddObject(Sphere(glm::vec4{ -6.0f, 0.0f, -6.0f, 0.0f }, 2.5f, 1));
-    scene.AddObject(Sphere(glm::vec4{ 0.0f, -102.5f, 0.0f, 0.0f }, 100.0f, 2));
-    scene.AddObject(Sphere(glm::vec4{ 1.4f, -4.5f, -50.0f, 0.0f }, 40.0f, 3));
+    scene.AddObject(Sphere(glm::vec4{ 0.0f, 0.0f, 0.0f, 0.0f }, 1.0f, 0, static_cast<int>(Model::DIFFUSE)));
+    scene.AddObject(Sphere(glm::vec4{ -6.0f, 0.0f, -6.0f, 0.0f }, 2.5f, 1, static_cast<int>(Model::DIFFUSE)));
+    scene.AddObject(Sphere(glm::vec4{ -6.0f, 0.0f, 6.0f, 0.0f }, 2.5f, 3, static_cast<int>(Model::DIFFUSE)));
+    scene.AddObject(Sphere(glm::vec4{ 0.0f, -102.5f, 0.0f, 0.0f }, 100.0f, 2, static_cast<int>(Model::DIFFUSE)));
+    scene.AddObject(Sphere(glm::vec4{ 1.4f, -4.5f, -50.0f, 0.0f }, 40.0f, 4, static_cast<int>(Model::EMISSIVE)));
 
     scene.AddMaterial(Material(glm::vec4(1.0f, 0.0f, 1.0f, 0.0f), 1.0f, 0.0f, { 0.0f, 0.0f }, glm::vec4(1.0f, 0.0f, 1.0f, 0.0f), 0.0f));
     scene.AddMaterial(Material(glm::vec4(0.2f, 0.3f, 1.0f, 0.0f), 1.0f));
     scene.AddMaterial(Material(glm::vec4(0.7f, 0.7f, 0.6f, 0.0f), 0.1f));
+    scene.AddMaterial(Material(glm::vec4(0.7f, 0.5f, 0.9f, 0.0f), 0.1f));
     scene.AddMaterial(emissiveMaterial);
 
     auto& spheres = scene.GetSpheres();
@@ -138,6 +142,7 @@ int main()
 
     int MAX_BOUNCE = 5;
     int MAX_SAMPLES = 10;
+    float exposure = 0.1;
     bool accumulate = false;
     bool reset = false;
 
@@ -162,6 +167,7 @@ int main()
         ImGui::DragInt("Max bounce", &MAX_BOUNCE, 1, 1, 50);
         ImGui::DragInt("Max samples", &MAX_SAMPLES, 1, 1, 100);
         ImGui::Checkbox("Accumulate", &accumulate);
+        ImGui::DragFloat("Exposure HDR", &exposure, 0.1f, 0.0f, 1.0f);
         if (ImGui::Button("Reset"))
         {
             reset = true;
@@ -245,6 +251,7 @@ int main()
         ComputeShader.Bind();
         glBindImageTexture(0, fb.frameBufferTex.textureID, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
         glBindImageTexture(1, accumulationTexture.textureID, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+        glBindImageTexture(2, HDRTexID, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
 
         if (accumulate)
         {
@@ -268,6 +275,7 @@ int main()
         ComputeShader.SetUniform1i("u_MAX_SAMPLES", MAX_SAMPLES);
         ComputeShader.SetUniform1i("u_SETTINGS", accumulate ? 1 : 0);
         ComputeShader.SetUniform1i("u_FrameIndex", frameIndex);
+        ComputeShader.SetUniform1f("u_Exposure", exposure);
 
         const uint32_t workGroupSizeX = 16;
         const uint32_t workGroupSizeY = 16;
