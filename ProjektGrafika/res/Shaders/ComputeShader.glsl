@@ -317,8 +317,8 @@ vec3 TraceRay(Ray ray, inout uint seed)
 
         light += GetEmission(closestSphereMaterial) * contribution;
 
-        vec3 lightDir = PLight.position - hitInfo.point;
-        float lightDist = length(lightDir);
+        //vec3 lightDir = PLight.position - hitInfo.point;
+        //float lightDist = length(lightDir);
 
         //if (!InShadow(hitInfo.point, normalize(lightDir), lightDist))
         //{
