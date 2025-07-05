@@ -16,6 +16,8 @@
 #include "Camera.h"
 #include "Scene.h"
 #include "Timer.h"
+#include "Framebuffer.h" 
+#include "UBO.h"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
@@ -84,12 +86,11 @@ int main()
 
     Camera camera(window, 45.0f, 0.1f, 100.0f, width, height);
 
-    Texture pathTracingTexture = CreateTexture(width, height);
-    Texture accumulationTexture = CreateTexture(width, height);
-    uint32_t HDRTexID = CreateCubeMap(CUBE_MAP "lakeside_sunrise_4k.hdr");
-    //uint32_t HDRTexID = CreateCubeMap(CUBE_MAP "passendorf_snow_4k.hdr");
+    auto pathTracingTexture = std::make_shared<Texture>(width, height);
+    auto accumulationTexture = std::make_shared<Texture>(width, height);
+    auto HDRTexID = std::make_shared<Texture>(CUBE_MAP "lakeside_sunrise_4k.hdr"); //"passendorf_snow_4k.hdr"
 
-    Framebuffer fb = CreateFramebuffer(pathTracingTexture);
+    Framebuffer fb(pathTracingTexture);
 
     Shader ComputeShader(RESOURCE_PATH "ComputeShader.glsl");
 
@@ -119,20 +120,8 @@ int main()
     auto& spheres = scene.GetSpheres();
     auto& materials = scene.GetMaterials();
 
-
-    uint32_t ubo[2];
-    glGenBuffers(1, &ubo[0]);
-    glBindBuffer(GL_UNIFORM_BUFFER, ubo[0]);
-    glBufferData(GL_UNIFORM_BUFFER, spheres.size() * sizeof(Sphere), spheres.data(), GL_STREAM_DRAW);
-    glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo[0]);
-    glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
-    glGenBuffers(1, &ubo[1]);
-    glBindBuffer(GL_UNIFORM_BUFFER, ubo[1]);
-    glBufferData(GL_UNIFORM_BUFFER, materials.size() * sizeof(Material), materials.data(), GL_STREAM_DRAW);
-    glBindBufferBase(GL_UNIFORM_BUFFER, 1, ubo[1]);
-    glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
+    UBO<Sphere> SphereUBO(spheres, 0);
+    UBO<Material> MaterialUBO(materials, 1);
 
     float deltaTime = 0.0f;
     float lastFrame = 0.0f;
@@ -183,7 +172,7 @@ int main()
 
             Sphere& sphere = spheres[i];
             ImGui::DragFloat3("Position", glm::value_ptr(sphere.position), 0.1f);
-            ImGui::DragFloat("Radius", &sphere.radius, 0.1f);
+            ImGui::DragFloat("Radius", &sphere.radius, 0.1f, 0.0f, FLT_MAX);
 
             ImGui::Separator();
 
@@ -210,10 +199,11 @@ int main()
 
         ImGui::End();
 
-
-        if (width != pathTracingTexture.width || height != pathTracingTexture.height)
+/*
+        if (width != pathTracingTexture.GetWidth() || height != pathTracingTexture.GetHeight())
         {
-            glDeleteTextures(1, &pathTracingTexture.textureID);
+            auto ptID = pathTracingTexture.GetTextureID();
+            glDeleteTextures(1, &pathTracingTexture.GetTextureID());
             glDeleteTextures(1, &accumulationTexture.textureID);
             pathTracingTexture = CreateTexture(width, height);
             accumulationTexture = CreateTexture(width, height);
@@ -226,15 +216,10 @@ int main()
 
             camera.OnResize(width, height);
         }
+        */
 
-
-        glBindBuffer(GL_UNIFORM_BUFFER, ubo[0]);
-        glBufferSubData(GL_UNIFORM_BUFFER, 0, spheres.size() * sizeof(Sphere), spheres.data());
-        glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
-        glBindBuffer(GL_UNIFORM_BUFFER, ubo[1]);
-        glBufferSubData(GL_UNIFORM_BUFFER, 0, materials.size() * sizeof(Material), materials.data());
-        glBindBuffer(GL_UNIFORM_BUFFER, 0);
+        SphereUBO.Update(spheres);
+        MaterialUBO.Update(materials);
 
 /*#ifdef _DEBUG
         ImGui::ShowDemoWindow();
@@ -249,9 +234,9 @@ int main()
         glfwGetFramebufferSize(window, &width, &height);
 
         ComputeShader.Bind();
-        glBindImageTexture(0, fb.frameBufferTex.textureID, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
-        glBindImageTexture(1, accumulationTexture.textureID, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
-        glBindImageTexture(2, HDRTexID, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
+        pathTracingTexture->Bind();
+        accumulationTexture->Bind();
+        HDRTexID->Bind();
 
         if (accumulate)
         {
@@ -286,14 +271,17 @@ int main()
         glDispatchCompute(numGroupsX, numGroupsY, 1);
         glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-        BlitFrambuffer(fb);
+        fb.Bind();
 
 
         if ((cameraMoved || reset) && accumulate)
         {
             ResetFrameIndex(frameIndex);
             std::vector<glm::vec4> clearColor(width * height, glm::vec4(0.0f));
-            glTextureSubImage2D(accumulationTexture.textureID, 0, 0, 0, width, height, GL_RGBA, GL_FLOAT, clearColor.data());
+
+            auto accumulationTexID = accumulationTexture->GetTextureID();
+
+            glTextureSubImage2D(accumulationTexID, 0, 0, 0, width, height, GL_RGBA, GL_FLOAT, clearColor.data());
         }
       
 

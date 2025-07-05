@@ -4,21 +4,27 @@
 #include <string>
 #include <filesystem>
 
-struct Texture
+
+class Texture
 {
-	uint32_t textureID;
-	int width, height;
+public:
+	Texture() = default;
+	Texture(int width, int height);
+	Texture(std::filesystem::path filepath);
+	~Texture();
+
+	uint32_t GetTextureID() const { return m_TextureID; }
+	uint32_t GetWidth() const { return m_Width; }
+	uint32_t GetHeight() const { return m_Height; }
+
+	//void Resize(int width, int height);
+
+	void Bind() const;
+
+private:
+	uint32_t m_TextureID;
+	int m_Width, m_Height;
+
+	int m_BindingCounter;
+	inline static int s_Counter = 0;
 };
-
-struct Framebuffer
-{
-	uint32_t framebufferID;
-	Texture frameBufferTex;
-};
-
-Texture CreateTexture(int width, int height);
-uint32_t CreateCubeMap(std::filesystem::path filepath);
-
-Framebuffer CreateFramebuffer(const Texture texture);
-bool AttachTextureToFramebuffer(Framebuffer& fb, const Texture texture);
-void BlitFrambuffer(const Framebuffer fb);

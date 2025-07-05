@@ -18,6 +18,8 @@ set(SOURCES
 	${SOURCE_DIR}/Timer.h
 	${SOURCE_DIR}/Texture.h
 	${SOURCE_DIR}/Texture.cpp
+	${SOURCE_DIR}/Framebuffer.h
+	${SOURCE_DIR}/Framebuffer.cpp
 )
 
 set(ImGui_SOURCES

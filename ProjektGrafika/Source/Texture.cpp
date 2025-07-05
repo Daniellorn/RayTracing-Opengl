@@ -5,96 +5,62 @@
 
 #include "stb_image.h"
 
-
-Texture CreateTexture(int width, int height)
+Texture::Texture(int width, int height):
+    m_Width(width), m_Height(height), m_BindingCounter(s_Counter++)
 {
-    Texture tex{
-        .width = width,
-        .height = height
-    };
 
-    glCreateTextures(GL_TEXTURE_2D, 1, &tex.textureID);
+    glCreateTextures(GL_TEXTURE_2D, 1, &m_TextureID);
 
-    glTextureParameteri(tex.textureID, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTextureParameteri(tex.textureID, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTextureParameteri(m_TextureID, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTextureParameteri(m_TextureID, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTextureParameteri(m_TextureID, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(m_TextureID, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    glTextureParameteri(tex.textureID, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTextureParameteri(tex.textureID, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTextureStorage2D(m_TextureID, 1, GL_RGBA32F, width, height);
 
-    glTextureStorage2D(tex.textureID, 1, GL_RGBA32F, width, height);
-
-
-    return tex;
 }
 
-uint32_t CreateCubeMap(std::filesystem::path filepath)
+Texture::Texture(std::filesystem::path filepath):
+    m_BindingCounter(s_Counter++)
 {
-
     int width, height, nrComponents;
 
     float* data = stbi_loadf(filepath.string().c_str(), &width, &height, &nrComponents, 0);
     if (!data)
     {
         std::cerr << "Failed to load HDR image\n";
-        return -1;
+        std::exit(-1);
     }
 
-    uint32_t hdrTexture;
-    glCreateTextures(GL_TEXTURE_2D, 1, &hdrTexture);
-    glTextureStorage2D(hdrTexture, 1, GL_RGB32F, width, height);
+    glCreateTextures(GL_TEXTURE_2D, 1, &m_TextureID);
+    glTextureStorage2D(m_TextureID, 1, GL_RGB32F, width, height);
 
-    glTextureParameteri(hdrTexture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTextureParameteri(hdrTexture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTextureParameteri(hdrTexture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTextureParameteri(hdrTexture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTextureParameteri(m_TextureID, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(m_TextureID, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(m_TextureID, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTextureParameteri(m_TextureID, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    glTextureSubImage2D(hdrTexture, 0, 0, 0, width, height, GL_RGB, GL_FLOAT, data);
+    glTextureSubImage2D(m_TextureID, 0, 0, 0, width, height, GL_RGB, GL_FLOAT, data);
 
     stbi_image_free(data);
 
-    glBindTextureUnit(2, hdrTexture);
+    m_Width = width;
+    m_Height = height;
 
-    return hdrTexture;
+    glBindTextureUnit(m_BindingCounter, m_TextureID);
 }
 
-Framebuffer CreateFramebuffer(const Texture texture)
+Texture::~Texture()
 {
-    Framebuffer fb;
-    fb.frameBufferTex = texture;
-
-    glCreateFramebuffers(1, &fb.framebufferID);
-
-    if (!AttachTextureToFramebuffer(fb, texture))
-    {
-        glDeleteFramebuffers(1, &fb.framebufferID);
-        return {};
-    }
-
-    return fb;
+    glDeleteTextures(1, &m_TextureID);
 }
 
-bool AttachTextureToFramebuffer(Framebuffer& fb, const Texture texture)
+//void Texture::Resize(int width, int height)
+//{
+//    glDeleteTextures(1, &m_TextureID);
+//}
+
+void Texture::Bind() const
 {
-    glNamedFramebufferTexture(fb.framebufferID, GL_COLOR_ATTACHMENT0, texture.textureID, 0);
-
-    auto fbostatus = glCheckNamedFramebufferStatus(fb.framebufferID, GL_FRAMEBUFFER);
-    if (fbostatus != GL_FRAMEBUFFER_COMPLETE)
-    {
-        std::cerr << "Framebuffer error" << std::endl;
-        return false;
-    }
-    fb.frameBufferTex = texture;
-
-    return true;
+    glBindImageTexture(m_BindingCounter, m_TextureID, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
 }
-
-void BlitFrambuffer(const Framebuffer fb)
-{
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, fb.framebufferID);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // default framebuffer (ekran)
-    glBlitFramebuffer(0, 0, fb.frameBufferTex.width, fb.frameBufferTex.height,
-        0, 0, fb.frameBufferTex.width, fb.frameBufferTex.height,
-        GL_COLOR_BUFFER_BIT, GL_NEAREST);
-}
-
-
