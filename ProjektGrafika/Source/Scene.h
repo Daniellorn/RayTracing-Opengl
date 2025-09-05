@@ -18,7 +18,7 @@ struct alignas(16) Material
 
 	float roughness; //16-19
 
-	float metallic = 0.0f; //20-23
+	float glossiness = 0.0f; //20-23
 
 	//padding 24-32
 	float padding[2] = { 0.0f, 0.0f };

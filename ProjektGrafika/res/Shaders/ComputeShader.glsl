@@ -18,7 +18,7 @@ struct Material
 {
     vec4 albedo; //0-15
     float roughness; //16-19
-    float metallic; //20-23
+    float glossiness; //20-23
 
     //padding 24-31
 
@@ -326,15 +326,16 @@ vec3 TraceRay(Ray ray, inout uint seed)
         //}
 
         vec3 albedo = vec3(closestSphereMaterial.albedo.xyz);
-        contribution *= albedo; //* invPI;
 
 
         ray.origin = hitInfo.point + hitInfo.normal * EPSILON;
 
         vec3 diffuseDir = normalize(RandomVec3OnUnitHemiSphere(seed, hitInfo.normal)); //diffuse
         vec3 specularDir = reflect(ray.direction, normal); // ray.direction - 2.0 * dot(normal, ray.direction) * normal;
+        bool isSpecularBounce = closestSphereMaterial.glossiness >= RandomFloat(seed); //glossiness
 
-        ray.direction = mix(diffuseDir, specularDir, closestSphereMaterial.roughness);
+        ray.direction = mix(diffuseDir, specularDir, closestSphereMaterial.roughness * int(isSpecularBounce));
+        contribution *= mix(albedo, vec3(1.0), int(isSpecularBounce)); //* invPI;
 
     }
 
@@ -367,7 +368,7 @@ void main()
 
     Ray ray;
     ray.origin = u_CameraPosition;
-    ray.direction = vec3(u_InverseView * vec4(normalize(vec3(target) / target.w), 0));
+    ray.direction = normalize(vec3(u_InverseView * vec4(normalize(vec3(target) / target.w), 0)));
 
     vec3 totalColor = vec3(0.0);
 
@@ -400,4 +401,6 @@ void main()
         imageStore(outputImage, pixelCoord, vec4(avgColor, 1.0));
     }
 
+
+    //imageStore(outputImage, pixelCoord, vec4(normalize(vec3(u_InverseView * vec4(normalize(vec3(target) / target.w), 0))), 1.0));
 }

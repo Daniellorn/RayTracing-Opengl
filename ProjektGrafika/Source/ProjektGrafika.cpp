@@ -19,6 +19,8 @@
 #include "Framebuffer.h" 
 #include "UBO.h"
 
+#define _DEBUG 1
+
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
 
@@ -106,6 +108,10 @@ int main()
     emissiveMaterial.EmissionPower = 2.0f;
 
     scene.AddObject(Sphere(glm::vec4{ 0.0f, 0.0f, 0.0f, 0.0f }, 1.0f, 0, static_cast<int>(Model::DIFFUSE)));
+    scene.AddObject(Sphere(glm::vec4{ 5.0f, 0.0f, 0.0f, 0.0f }, 1.0f, 0, static_cast<int>(Model::DIFFUSE)));
+    scene.AddObject(Sphere(glm::vec4{ 10.0f, 0.0f, 0.0f, 0.0f }, 1.0f, 0, static_cast<int>(Model::DIFFUSE)));
+    scene.AddObject(Sphere(glm::vec4{ -5.0f, 0.0f, 0.0f, 0.0f }, 1.0f, 0, static_cast<int>(Model::DIFFUSE)));
+    scene.AddObject(Sphere(glm::vec4{ -10.0f, 0.0f, 0.0f, 0.0f }, 1.0f, 0, static_cast<int>(Model::DIFFUSE)));
     scene.AddObject(Sphere(glm::vec4{ -6.0f, 0.0f, -6.0f, 0.0f }, 2.5f, 1, static_cast<int>(Model::DIFFUSE)));
     scene.AddObject(Sphere(glm::vec4{ -6.0f, 0.0f, 6.0f, 0.0f }, 2.5f, 3, static_cast<int>(Model::DIFFUSE)));
     scene.AddObject(Sphere(glm::vec4{ 0.0f, -102.5f, 0.0f, 0.0f }, 100.0f, 2, static_cast<int>(Model::DIFFUSE)));
@@ -188,7 +194,7 @@ int main()
             Material& material = materials[i];
             ImGui::ColorEdit3("Albedo", glm::value_ptr(material.albedo));
             ImGui::DragFloat("Roughness", &material.roughness, 0.05f, 0.0f, 1.0f);
-            ImGui::DragFloat("Metallic", &material.metallic, 0.05f, 0.0f, 1.0f);
+            ImGui::DragFloat("Metallic", &material.glossiness, 0.05f, 0.0f, 1.0f);
             ImGui::ColorEdit3("Emission Color", glm::value_ptr(material.EmissionColor));
             ImGui::DragFloat("Emission Power", &material.EmissionPower, 0.05f, 0.0f, FLT_MAX);
 
@@ -221,10 +227,10 @@ int main()
         SphereUBO.Update(spheres);
         MaterialUBO.Update(materials);
 
-/*#ifdef _DEBUG
-        ImGui::ShowDemoWindow();
-#endif
-*/
+//#if _DEBUG
+//        ImGui::ShowDemoWindow();
+//#endif
+
         currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
