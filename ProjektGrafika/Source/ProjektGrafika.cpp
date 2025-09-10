@@ -204,25 +204,21 @@ int main()
         }
 
         ImGui::End();
+       
+        glfwGetFramebufferSize(window, &width, &height);
 
-/*
-        if (width != pathTracingTexture.GetWidth() || height != pathTracingTexture.GetHeight())
+
+        if (width != pathTracingTexture->GetWidth() || height != pathTracingTexture->GetHeight())
         {
-            auto ptID = pathTracingTexture.GetTextureID();
-            glDeleteTextures(1, &pathTracingTexture.GetTextureID());
-            glDeleteTextures(1, &accumulationTexture.textureID);
-            pathTracingTexture = CreateTexture(width, height);
-            accumulationTexture = CreateTexture(width, height);
+            
+            pathTracingTexture->Resize(width, height);
+            accumulationTexture->Resize(width, height);
 
-            if (!AttachTextureToFramebuffer(fb, pathTracingTexture))
-            {
-                std::cerr << "Resize failed\n";
-                return -1;
-            }
+            fb.AttachTextureToFramebuffer(pathTracingTexture);
 
             camera.OnResize(width, height);
         }
-        */
+        
 
         SphereUBO.Update(spheres);
         MaterialUBO.Update(materials);
@@ -237,7 +233,6 @@ int main()
 
         processInput(window);
 
-        glfwGetFramebufferSize(window, &width, &height);
 
         ComputeShader.Bind();
         pathTracingTexture->Bind();

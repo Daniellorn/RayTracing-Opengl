@@ -9,7 +9,7 @@ Framebuffer::Framebuffer(std::shared_ptr<Texture> texture):
 {
 	glCreateFramebuffers(1, &m_FramebufferID);
 
-    if (!AttachTextureToFramebuffer())
+    if (!AttachTextureToFramebuffer(texture))
     {
         glDeleteFramebuffers(1, &m_FramebufferID);
         std::exit(-1);
@@ -30,9 +30,9 @@ void Framebuffer::UnBind() const
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-bool Framebuffer::AttachTextureToFramebuffer()
+bool Framebuffer::AttachTextureToFramebuffer(std::shared_ptr<Texture> texture)
 {
-    auto TexID = m_Texture->GetTextureID();
+    auto TexID = texture->GetTextureID();
 
     glNamedFramebufferTexture(m_FramebufferID, GL_COLOR_ATTACHMENT0, TexID, 0);
 

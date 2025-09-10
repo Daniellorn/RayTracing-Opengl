@@ -53,12 +53,30 @@ Texture::Texture(std::filesystem::path filepath):
 Texture::~Texture()
 {
     glDeleteTextures(1, &m_TextureID);
+
 }
 
 //void Texture::Resize(int width, int height)
 //{
 //    glDeleteTextures(1, &m_TextureID);
 //}
+
+void Texture::Resize(int width, int height)
+{
+    glDeleteTextures(1, &m_TextureID);
+
+    m_Width = width;
+    m_Height = height;
+
+    glCreateTextures(GL_TEXTURE_2D, 1, &m_TextureID);
+
+    glTextureParameteri(m_TextureID, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTextureParameteri(m_TextureID, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTextureParameteri(m_TextureID, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(m_TextureID, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    glTextureStorage2D(m_TextureID, 1, GL_RGBA32F, width, height);
+}
 
 void Texture::Bind() const
 {

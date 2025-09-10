@@ -14,9 +14,7 @@ public:
 	void Bind() const;
 	void UnBind() const;
 
-private:
-
-	bool AttachTextureToFramebuffer();
+	bool AttachTextureToFramebuffer(std::shared_ptr<Texture> texture);
 
 private:
 	uint32_t m_FramebufferID;
