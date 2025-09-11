@@ -36,7 +36,7 @@ bool Camera::OnUpdate(float ts)
 
 	bool moved = false;
 
-	constexpr glm::vec3 upDirection{ 0.0f, 1.0f, 0.0f };
+	glm::vec3 upDirection{ 0.0f, 1.0f, 0.0f };
 	glm::vec3 rightDirection = glm::normalize(glm::cross(m_ForwardDirection, upDirection));
 
 	float speed = 5.0f;
@@ -103,6 +103,14 @@ void Camera::OnResize(uint32_t width, uint32_t height)
 	m_Width = width;
 	m_Height = height;
 
+	RecalculateView();
+}
+
+void Camera::UpdateFOV(float fov)
+{
+	m_FOV = fov;
+
+	CalculateProjection();
 	RecalculateView();
 }
 

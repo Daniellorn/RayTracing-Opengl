@@ -21,6 +21,8 @@ public:
 	bool OnUpdate(float ts); 
 	void OnResize(uint32_t width, uint32_t height);
 
+	void UpdateFOV(float fov);
+
 private:
 
 	void RecalculateView();

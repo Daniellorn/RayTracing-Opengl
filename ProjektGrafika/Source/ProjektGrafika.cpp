@@ -140,6 +140,7 @@ int main()
     float exposure = 0.1;
     bool accumulate = false;
     bool reset = false;
+    float fov = 45.0f;
 
     uint32_t frameIndex = 1;
 
@@ -168,6 +169,11 @@ int main()
             reset = true;
             ResetFrameIndex(frameIndex);
         };
+        if (ImGui::DragFloat("FOV", &fov, 1.0f, 10.0f, 100.0f));
+        {
+            camera.UpdateFOV(fov);
+        }
+
         ImGui::End();
 
         ImGui::Begin("Spheres");
