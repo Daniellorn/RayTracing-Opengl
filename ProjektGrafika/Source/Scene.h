@@ -8,7 +8,8 @@ enum class Model
 {
 	DIFFUSE = 0,
 	SPECULAR,
-	EMISSIVE
+	EMISSIVE,
+	REFRACT
 };
 
 
@@ -26,6 +27,7 @@ struct alignas(16) Material
 	 glm::vec4 EmissionColor{ 0.0f }; //32-47
 
 	float EmissionPower = 0.0f; // 48-51
+	float refractionIndex = 1.0f;
 	//52-64
 };
 

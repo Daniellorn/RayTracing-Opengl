@@ -24,6 +24,7 @@ struct Material
 
     vec4 EmissionColor; //32-47
     float EmissionPower; //48-51
+    float refractionIndex;
 	//alignment 52-64
 };
 
@@ -144,6 +145,14 @@ vec3 RandomVec3(inout uint seed, float min, float max)
     );
 }
 
+float FresnelSchlick(float cosTheta, float refIndex)
+{
+    float r0 = (1.0 - refIndex) / (1.0 + refIndex);
+    r0 = r0 * r0;
+    return r0 + (1.0 - r0) * pow(1.0 - cosTheta, 5.0);
+}
+
+
 vec3 DirectionalLightContribution(DirectionalLight Light, HitInfo info, Material mat)
 {
     vec3 L = -Light.direction;
@@ -184,7 +193,7 @@ vec3 RayAt(Ray ray, float t)
     return ray.direction * t + ray.origin;
 }
 
-float Intersection(Ray ray, Sphere sphere)
+float SphereIntersection(Ray ray, Sphere sphere)
 {
     vec3 oc = ray.origin - vec3(sphere.position.x, sphere.position.y, sphere.position.z);
 
@@ -218,6 +227,11 @@ float Intersection(Ray ray, Sphere sphere)
     }
 }
 
+//float TriangleIntersection(Ray ray, Triangle triangle)
+//{
+//    
+//}
+
 HitInfo Miss()
 {
     HitInfo hitInfo;
@@ -234,7 +248,7 @@ HitInfo CheckIntersection(Ray ray)
 
     for (int i = 0; i < u_NumOfSpheres; i++)
     {
-        float t = Intersection(ray, spheres[i]);
+        float t = SphereIntersection(ray, spheres[i]);
 
         if (t < 0.0)
         {
@@ -267,7 +281,7 @@ bool InShadow(vec3 origin, vec3 directionToLight, float maxDistance)
 
     for (int i = 0; i < u_NumOfSpheres; i++)
     {
-        float t = Intersection(shadowRay, spheres[i]);
+        float t = SphereIntersection(shadowRay, spheres[i]);
 
         if (t > 0.0 && t < maxDistance)
         {
@@ -295,14 +309,15 @@ vec3 TraceRay(Ray ray, inout uint seed)
 
         if (hitInfo.hitDistance < 0.0)
         {
-            //vec3 unit_direction = normalize(ray.direction);
-            //float a = 0.5 * (unit_direction.y + 1.0);
-            //vec3 skyColor = vec3(mix(vec3(1.0, 1.0, 1.0), vec3(0.5, 0.7, 1.0), a));
+            vec3 unit_direction = normalize(ray.direction);
+            float a = 0.5 * (unit_direction.y + 1.0);
+            vec3 skyColor = vec3(mix(vec3(1.0, 1.0, 1.0), vec3(0.5, 0.7, 1.0), a));
+           
+            //vec3 unitDir = normalize(ray.direction);
+            //vec2 uv = dirToUV(unitDir);
+            //vec3 skyColor = texture(u_SkyboxEquirect, uv).rgb;
+            //light += skyColor * contribution;
 
-            vec3 unitDir = normalize(ray.direction);
-            vec2 uv = dirToUV(unitDir);
-            vec3 skyColor = texture(u_SkyboxEquirect, uv).rgb;
-            light += skyColor * contribution;
 
             break;
         }
@@ -330,12 +345,42 @@ vec3 TraceRay(Ray ray, inout uint seed)
 
         ray.origin = hitInfo.point + hitInfo.normal * EPSILON;
 
-        vec3 diffuseDir = normalize(RandomVec3OnUnitHemiSphere(seed, hitInfo.normal)); //diffuse
-        vec3 specularDir = reflect(ray.direction, normal); // ray.direction - 2.0 * dot(normal, ray.direction) * normal;
-        bool isSpecularBounce = closestSphereMaterial.glossiness >= RandomFloat(seed); //glossiness
+        if (closestSphere.type == 3)
+        {
+                float cosTheta = clamp(dot(-ray.direction, normal), 0.0, 1.0);
+                bool outside = dot(ray.direction, normal) < 0.0;
+                vec3 n = outside ? normal : -normal;
+                float eta = outside ? (1.0 / closestSphereMaterial.refractionIndex) 
+                    : (closestSphereMaterial.refractionIndex);
 
-        ray.direction = mix(diffuseDir, specularDir, closestSphereMaterial.roughness * int(isSpecularBounce));
-        contribution *= mix(albedo, vec3(1.0), int(isSpecularBounce)); //* invPI;
+                float fresnel = FresnelSchlick(cosTheta, closestSphereMaterial.refractionIndex);
+
+                vec3 refractDir = refract(ray.direction, n, 1.0 / closestSphereMaterial.refractionIndex);
+                vec3 reflectDir = reflect(ray.direction, normal);
+                
+                if (RandomFloat(seed) < fresnel || length(refractDir) < 0.001)
+                {
+                     ray.direction = normalize(reflectDir);
+                }
+                else
+                {
+                    ray.direction = normalize(refractDir);
+                }
+        }
+        else
+        {
+
+            vec3 diffuseDir = normalize(RandomVec3OnUnitHemiSphere(seed, hitInfo.normal)); //diffuse
+            vec3 specularDir = reflect(ray.direction, normal); // ray.direction - 2.0 * dot(normal, ray.direction) * normal;
+            vec3 refractionDir;
+            bool isSpecularBounce = closestSphereMaterial.glossiness >= RandomFloat(seed); //glossiness
+
+            ray.direction = mix(diffuseDir, specularDir, closestSphereMaterial.roughness * int(isSpecularBounce));
+            contribution *= mix(albedo, vec3(1.0), int(isSpecularBounce)); //* invPI;
+
+        }
+
+
 
     }
 

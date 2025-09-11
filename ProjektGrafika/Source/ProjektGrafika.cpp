@@ -107,20 +107,29 @@ int main()
     emissiveMaterial.EmissionColor = glm::vec4{ 0.8f, 0.7f, 0.1f, 0.0f };
     emissiveMaterial.EmissionPower = 2.0f;
 
+    Material refractionMaterial;
+    refractionMaterial.albedo = glm::vec4(1.0f);
+    refractionMaterial.EmissionColor = glm::vec4(0.0f);
+    refractionMaterial.EmissionPower = 0.0f;
+    refractionMaterial.glossiness = 0.0f;
+    refractionMaterial.refractionIndex = 1.5f;
+    refractionMaterial.roughness = 1.0;
+
     scene.AddObject(Sphere(glm::vec4{ 0.0f, 0.0f, 0.0f, 0.0f }, 1.0f, 0, static_cast<int>(Model::DIFFUSE)));
-    scene.AddObject(Sphere(glm::vec4{ 5.0f, 0.0f, 0.0f, 0.0f }, 1.0f, 0, static_cast<int>(Model::DIFFUSE)));
+    scene.AddObject(Sphere(glm::vec4{ 5.0f, 20.0f, 0.0f, 0.0f }, 1.0f, 4, static_cast<int>(Model::REFRACT)));
     scene.AddObject(Sphere(glm::vec4{ 10.0f, 0.0f, 0.0f, 0.0f }, 1.0f, 0, static_cast<int>(Model::DIFFUSE)));
     scene.AddObject(Sphere(glm::vec4{ -5.0f, 0.0f, 0.0f, 0.0f }, 1.0f, 0, static_cast<int>(Model::DIFFUSE)));
     scene.AddObject(Sphere(glm::vec4{ -10.0f, 0.0f, 0.0f, 0.0f }, 1.0f, 0, static_cast<int>(Model::DIFFUSE)));
     scene.AddObject(Sphere(glm::vec4{ -6.0f, 0.0f, -6.0f, 0.0f }, 2.5f, 1, static_cast<int>(Model::DIFFUSE)));
     scene.AddObject(Sphere(glm::vec4{ -6.0f, 0.0f, 6.0f, 0.0f }, 2.5f, 3, static_cast<int>(Model::DIFFUSE)));
     scene.AddObject(Sphere(glm::vec4{ 0.0f, -102.5f, 0.0f, 0.0f }, 100.0f, 2, static_cast<int>(Model::DIFFUSE)));
-    scene.AddObject(Sphere(glm::vec4{ 1.4f, -4.5f, -50.0f, 0.0f }, 40.0f, 4, static_cast<int>(Model::EMISSIVE)));
+    scene.AddObject(Sphere(glm::vec4{ 1.4f, -4.5f, -50.0f, 0.0f }, 40.0f, 5, static_cast<int>(Model::EMISSIVE)));
 
     scene.AddMaterial(Material(glm::vec4(1.0f, 0.0f, 1.0f, 0.0f), 1.0f, 0.0f, { 0.0f, 0.0f }, glm::vec4(1.0f, 0.0f, 1.0f, 0.0f), 0.0f));
     scene.AddMaterial(Material(glm::vec4(0.2f, 0.3f, 1.0f, 0.0f), 1.0f));
     scene.AddMaterial(Material(glm::vec4(0.7f, 0.7f, 0.6f, 0.0f), 0.1f));
     scene.AddMaterial(Material(glm::vec4(0.7f, 0.5f, 0.9f, 0.0f), 0.1f));
+    scene.AddMaterial(refractionMaterial);
     scene.AddMaterial(emissiveMaterial);
 
     auto& spheres = scene.GetSpheres();
@@ -197,6 +206,7 @@ int main()
             ImGui::DragFloat("Metallic", &material.glossiness, 0.05f, 0.0f, 1.0f);
             ImGui::ColorEdit3("Emission Color", glm::value_ptr(material.EmissionColor));
             ImGui::DragFloat("Emission Power", &material.EmissionPower, 0.05f, 0.0f, FLT_MAX);
+            ImGui::DragFloat("Reflectance", &material.refractionIndex, 0.05, 1.0, 2.5);
 
             ImGui::Separator();
 
